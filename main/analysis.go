@@ -163,9 +163,8 @@ func (a *Analyzer) checkTypeRecursive(t types.Type, visited map[types.Type]bool)
 		return false // Break cycles
 	}
 	visited[t] = true
-	if t == nil {
-		return false
-	}
+    if t == nil { return false }
+    // fmt.Printf("DEBUG: checkTypeRecursive %s (%T)\n", t.String(), t)
 
 	// Unwrap aliases
 	if named, ok := t.(*types.Named); ok {
@@ -204,6 +203,8 @@ func (a *Analyzer) checkTypeRecursive(t types.Type, visited map[types.Type]bool)
 				return true
 			}
 		}
+    case *types.Alias:
+        return a.checkTypeRecursive(t.Rhs(), visited)
 	}
 	return false
 }

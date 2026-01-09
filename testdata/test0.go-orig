@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package simd_flex
+package testdata
 
 import (
 	"fmt"
@@ -23,7 +23,11 @@ var SomeVec simd.Int32s
 
 // A function using SIMD types directly
 func Add(a, b simd.Int32s) simd.Int32s {
-	// Simple mock body, logic doesn't matter for rewrite test
+	return a
+}
+
+// A function using an alias of simd types
+func AddAlias(a, b MyInt8s) MyInt8s {
 	return a
 }
 

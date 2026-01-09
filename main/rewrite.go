@@ -50,82 +50,104 @@ func (r *Rewriter) Rewrite() error {
 }
 
 func (r *Rewriter) generateDispatchers() error {
-	// Iterate over original files to modify them in place
-	// We assume we can just overwrite them.
-
-	for _, fileAST := range r.pkg.Syntax {
-		tokenFile := r.pkg.Fset.File(fileAST.Pos())
-		if tokenFile == nil {
-			continue
-		}
-		filename := tokenFile.Name()
-		if strings.Contains(filename, "_simd") {
-			continue
-		}
-
-		modified := false
-
-		for _, decl := range fileAST.Decls {
-			fnDecl, ok := decl.(*ast.FuncDecl)
-			if !ok {
-				continue
-			}
-
-			// Check if Dependent
-			obj := r.pkg.TypesInfo.ObjectOf(fnDecl.Name)
-			if !r.analyzer.dependentObj[obj] {
-				continue
-			}
-
-			// Check if Signature is Clean (no Dependent types in Params/Results)
-			// We use the already computed dependency info for the signature components.
-			// Wait, `analyzer.dependentObj` tracks objects.
-			// We need to check if the `Type` of the function involves SIMD types.
-			// `obj.Type()` is a `*types.Signature`.
-			sig := obj.Type().(*types.Signature)
-
-			// Re-use `analyzer.isDependentType` logic?
-			// `Analyzer` needs to expose `isDependentType` or we check manually.
-			// `r.analyzer.isDependentType` is private. I should make it public or duplicate check.
-			// Let's assume we can access it or I'll export it.
-			// For now, I'll export `IsDependentType` in `analysis.go` in next step if needed, or stick to this plan.
-			// Better: `markIfDependent` already did `dependentObj[obj] = true` based on signature.
-			// Accessing `IsDependentType` is cleaner.
-
-			if r.analyzer.HasDependentSignature(sig) {
-				// HAS dependent signature -> DO NOT Dispatch (as per instructions)
-				continue
-			}
-
-			// If we are here, it is Dependent (calls internal SIMD stuff) but has Clean Signature.
-			// Rewrite Body!
-			fnDecl.Body = r.createDispatcherBody(fnDecl.Name.Name, fnDecl.Type)
-			modified = true
-		}
-
-		if modified {
-			// Overwrite file
-			// Imports? We might need to ensure `simd` is imported if we reference `simd.VectorSize()`.
-			// Check if `simd` is imported. If not, add it.
-			// `imports.Process` will handle it!
-
-			var buf strings.Builder
-			if err := format.Node(&buf, r.pkg.Fset, fileAST); err != nil {
-				return fmt.Errorf("formatting failed: %v", err)
-			}
-
-			res, err := imports.Process(filename, []byte(buf.String()), nil)
-			if err != nil {
-				return fmt.Errorf("imports processing failed for %s: %v", filename, err)
-			}
-
-			if err := os.WriteFile(filename, res, 0644); err != nil {
-				return err
-			}
-			fmt.Printf("Updated dispatcher: %s\n", filename)
-		}
-	}
-	return nil
+    // Iterate over original files to modify them in place
+    for _, fileAST := range r.pkg.Syntax {
+        tokenFile := r.pkg.Fset.File(fileAST.Pos())
+        if tokenFile == nil { continue }
+        filename := tokenFile.Name()
+        if strings.Contains(filename, "_simd") { continue }
+        
+        // We will build a new list of Decls
+        var newDecls []ast.Decl
+        modified := false
+        
+        for _, decl := range fileAST.Decls {
+            switch d := decl.(type) {
+            case *ast.FuncDecl:
+                obj := r.pkg.TypesInfo.ObjectOf(d.Name)
+                if !r.analyzer.dependentObj[obj] {
+                    // Not dependent, keep as is
+                    newDecls = append(newDecls, d)
+                    continue
+                }
+                
+                // It IS dependent.
+                sig := obj.Type().(*types.Signature)
+                if r.analyzer.HasDependentSignature(sig) {
+                    // Dependent Signature -> Remove (Drop)
+                    modified = true
+                    continue
+                }
+                
+                // Clean Signature -> Dispatcher
+                d.Body = r.createDispatcherBody(d.Name.Name, d.Type)
+                newDecls = append(newDecls, d)
+                modified = true
+                
+            case *ast.GenDecl:
+                // Filter Specs
+                var newSpecs []ast.Spec
+                for _, spec := range d.Specs {
+                    keep := true
+                     switch s := spec.(type) {
+                     case *ast.TypeSpec:
+                         // fmt.Printf("DEBUG: Checking TypeSpec %s: dependent=%v\n", s.Name.Name, r.analyzer.dependentObj[r.pkg.TypesInfo.ObjectOf(s.Name)])
+                         if r.analyzer.dependentObj[r.pkg.TypesInfo.ObjectOf(s.Name)] {
+                             keep = false
+                         }
+                     case *ast.ValueSpec:
+                         // If ANY name is dependent, is the whole spec dependent?
+                         // "Variables are rewritten... if their type is one of the simd types"
+                         // If we have `var x, y simd.Int8s`, both are dependent.
+                         // If `var x int, y simd.Int8s` (can't happen in one spec unless tuple assign? No, Go syntax restricts type).
+                         for _, name := range s.Names {
+                             if r.analyzer.dependentObj[r.pkg.TypesInfo.ObjectOf(name)] {
+                                 keep = false
+                                 break
+                             }
+                         }
+                     }
+                     if keep {
+                         newSpecs = append(newSpecs, spec)
+                     } else {
+                         modified = true
+                     }
+                }
+                
+                if len(newSpecs) > 0 {
+                    d.Specs = newSpecs
+                    newDecls = append(newDecls, d)
+                } else if len(d.Specs) > 0 {
+                    // If we removed all specs, we effectively modified the file (by removing the decl)
+                    // Even if modified=true was set in loop, we confirm it here.
+                }
+                
+            default:
+                newDecls = append(newDecls, decl)
+            }
+        }
+        
+        if modified {
+            // Update Decls
+            fileAST.Decls = newDecls
+            
+            var buf strings.Builder
+            if err := format.Node(&buf, r.pkg.Fset, fileAST); err != nil {
+                return fmt.Errorf("formatting failed: %v", err)
+            }
+            
+            res, err := imports.Process(filename, []byte(buf.String()), nil)
+            if err != nil {
+                 return fmt.Errorf("imports processing failed for %s: %v", filename, err)
+            }
+            
+            if err := os.WriteFile(filename, res, 0644); err != nil {
+                return err
+            }
+            fmt.Printf("Updated dispatcher (filtered): %s\n", filename)
+        }
+    }
+    return nil
 }
 
 func (r *Rewriter) createDispatcherBody(funcName string, funcType *ast.FuncType) *ast.BlockStmt {

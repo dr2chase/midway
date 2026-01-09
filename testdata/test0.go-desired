@@ -9,9 +9,15 @@ import (
 	"simd_flex/simd"
 )
 
+// A SIMD-dependent type alias
+
+// A struct dependent on SIMD
+
 // Two SIMD-dependent global variables
 
 // A function using SIMD types directly
+
+// A function using an alias of simd types
 
 // A function type that mentions simd
 
@@ -113,6 +119,7 @@ func DepCallsDep() (x, y any, b bool) {
 		return DepCallsDep_simd256()
 	default:
 		panic(
+
 			// Caller that is NOT dependent calls one that IS dependent.
 			"unsupported vector size")
 	}

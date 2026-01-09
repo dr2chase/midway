@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package simd_flex
+package testdata
 
 import (
 	"fmt"
@@ -10,66 +10,69 @@ import (
 )
 
 // A SIMD-dependent type alias
-type MyInt8s = simd.Int8s
 
 // A struct dependent on SIMD
-type VectorC struct {
-	Data simd.Float64s
-}
 
 // Two SIMD-dependent global variables
-var ZeroVec simd.Int32s
-var SomeVec simd.Int32s
 
 // A function using SIMD types directly
-func Add(a, b simd.Int32s) simd.Int32s {
-	// Simple mock body, logic doesn't matter for rewrite test
-	return a
-}
+
+// A function using an alias of simd types
 
 // A function type that mentions simd
-type Adder func(a, b simd.Int32s) simd.Int32s
 
 // A struct of a pair of simd pointers
-type PtrPair struct {
-	a *simd.Float64s
-	b *simd.Uint32s
-}
 
 // A dependent function with a dependent signature
-func Process(v VectorC) {
-	fmt.Println(v)
-}
 
 // A dependent function with a standard signature
 func ComputeSum(n int) int {
+	switch
 	// Uses SIMD internally
-	var v simd.Int32s
-	_ = v
-
-	return n * 2
+	simd.VectorSize() {
+	case 128:
+		return ComputeSum_simd128(n)
+	case 256:
+		return ComputeSum_simd256(n)
+	default:
+		panic("unsupported vector size")
+	}
 }
 
 // A dependent function with a standard signature
 func MentionsPPair(a any) any {
-	x, _ := a.(PtrPair)
-	return x.b
+	switch simd.VectorSize() {
+	case 128:
+		return MentionsPPair_simd128(a)
+	case 256:
+		return MentionsPPair_simd256(a)
+	default:
+		panic("unsupported vector size")
+	}
 }
 
 // A dependent function with a standard signature
 func MentionsAdder(a any) any {
-	x, _ := a.(Adder)
-	return x
+	switch simd.VectorSize() {
+	case 128:
+		return MentionsAdder_simd128(a)
+	case 256:
+		return MentionsAdder_simd256(a)
+	default:
+		panic("unsupported vector size")
+	}
 }
 
 // A dependent function with a standard signature
 func InAClosure(x any) any {
-	f := func(y any) any {
-		sx, _ := x.(simd.Int32s)
-		sy, _ := y.(simd.Int32s)
-		return Add(sx, sy)
+	switch simd.VectorSize() {
+	case 128:
+		return InAClosure_simd128(x)
+	case 256:
+		return InAClosure_simd256(x)
+	default:
+		panic("unsupported vector size")
 	}
-	return f
 }
 
 type Ftype func(x any) any
@@ -77,35 +80,51 @@ type Ftype func(x any) any
 var Fvar Ftype
 
 // A dependent function with a dependent signature
-func (v *VectorC) MethodOfSimd() bool {
-	return false
-}
 
 type Vint interface {
 	MethodOfSimd() bool
 }
 
-var vc VectorC
 var anyVc any // = &vc // this looks like a problem.
 
 // init depends on vc
 func init() {
-	anyVc = &vc
+	switch simd.VectorSize(
+
+	// A dependent function with a standard signature
+	// that calls two dependent functions, one with a dependent
+	// signature, one without.
+	// Also assigns a dependent function value to a pointer.
+	) {
+	case 128:
+		{
+			init_simd128()
+			return
+		}
+	case 256:
+		{
+			init_simd256()
+			return
+		}
+	default:
+		panic("unsupported vector size")
+	}
 }
 
-// A dependent function with a standard signature
-// that calls two dependent functions, one with a dependent
-// signature, one without.
-// Also assigns a dependent function value to a pointer.
 func DepCallsDep() (x, y any, b bool) {
-	x = Add(ZeroVec, SomeVec)
-	y = MentionsAdder(Add)
-	Fvar = InAClosure
-	_, b = anyVc.(Vint)
-	return
+	switch simd.VectorSize() {
+	case 128:
+		return DepCallsDep_simd128()
+	case 256:
+		return DepCallsDep_simd256()
+	default:
+		panic(
+
+			// Caller that is NOT dependent calls one that IS dependent.
+			"unsupported vector size")
+	}
 }
 
-// Caller that is NOT dependent calls one that IS dependent.
 func MainCaller() {
 	res := ComputeSum(10)
 	fmt.Println(res)
