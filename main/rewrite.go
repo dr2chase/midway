@@ -50,104 +50,107 @@ func (r *Rewriter) Rewrite() error {
 }
 
 func (r *Rewriter) generateDispatchers() error {
-    // Iterate over original files to modify them in place
-    for _, fileAST := range r.pkg.Syntax {
-        tokenFile := r.pkg.Fset.File(fileAST.Pos())
-        if tokenFile == nil { continue }
-        filename := tokenFile.Name()
-        if strings.Contains(filename, "_simd") { continue }
-        
-        // We will build a new list of Decls
-        var newDecls []ast.Decl
-        modified := false
-        
-        for _, decl := range fileAST.Decls {
-            switch d := decl.(type) {
-            case *ast.FuncDecl:
-                obj := r.pkg.TypesInfo.ObjectOf(d.Name)
-                if !r.analyzer.dependentObj[obj] {
-                    // Not dependent, keep as is
-                    newDecls = append(newDecls, d)
-                    continue
-                }
-                
-                // It IS dependent.
-                sig := obj.Type().(*types.Signature)
-                if r.analyzer.HasDependentSignature(sig) {
-                    // Dependent Signature -> Remove (Drop)
-                    modified = true
-                    continue
-                }
-                
-                // Clean Signature -> Dispatcher
-                d.Body = r.createDispatcherBody(d.Name.Name, d.Type)
-                newDecls = append(newDecls, d)
-                modified = true
-                
-            case *ast.GenDecl:
-                // Filter Specs
-                var newSpecs []ast.Spec
-                for _, spec := range d.Specs {
-                    keep := true
-                     switch s := spec.(type) {
-                     case *ast.TypeSpec:
-                         // fmt.Printf("DEBUG: Checking TypeSpec %s: dependent=%v\n", s.Name.Name, r.analyzer.dependentObj[r.pkg.TypesInfo.ObjectOf(s.Name)])
-                         if r.analyzer.dependentObj[r.pkg.TypesInfo.ObjectOf(s.Name)] {
-                             keep = false
-                         }
-                     case *ast.ValueSpec:
-                         // If ANY name is dependent, is the whole spec dependent?
-                         // "Variables are rewritten... if their type is one of the simd types"
-                         // If we have `var x, y simd.Int8s`, both are dependent.
-                         // If `var x int, y simd.Int8s` (can't happen in one spec unless tuple assign? No, Go syntax restricts type).
-                         for _, name := range s.Names {
-                             if r.analyzer.dependentObj[r.pkg.TypesInfo.ObjectOf(name)] {
-                                 keep = false
-                                 break
-                             }
-                         }
-                     }
-                     if keep {
-                         newSpecs = append(newSpecs, spec)
-                     } else {
-                         modified = true
-                     }
-                }
-                
-                if len(newSpecs) > 0 {
-                    d.Specs = newSpecs
-                    newDecls = append(newDecls, d)
-                } else if len(d.Specs) > 0 {
-                    // If we removed all specs, we effectively modified the file (by removing the decl)
-                    // Even if modified=true was set in loop, we confirm it here.
-                }
-                
-            default:
-                newDecls = append(newDecls, decl)
-            }
-        }
-        
-        if modified {
-            // Update Decls
-            fileAST.Decls = newDecls
-            
-            var buf strings.Builder
-            if err := format.Node(&buf, r.pkg.Fset, fileAST); err != nil {
-                return fmt.Errorf("formatting failed: %v", err)
-            }
-            
-            res, err := imports.Process(filename, []byte(buf.String()), nil)
-            if err != nil {
-                 return fmt.Errorf("imports processing failed for %s: %v", filename, err)
-            }
-            
-            if err := os.WriteFile(filename, res, 0644); err != nil {
-                return err
-            }
-            fmt.Printf("Updated dispatcher (filtered): %s\n", filename)
-        }
-    }
-    return nil
+	// Iterate over original files to modify them in place
+	for _, fileAST := range r.pkg.Syntax {
+		tokenFile := r.pkg.Fset.File(fileAST.Pos())
+		if tokenFile == nil {
+			continue
+		}
+		filename := tokenFile.Name()
+		if strings.Contains(filename, "_simd") {
+			continue
+		}
+
+		// We will build a new list of Decls
+		var newDecls []ast.Decl
+		modified := false
+
+		for _, decl := range fileAST.Decls {
+			switch d := decl.(type) {
+			case *ast.FuncDecl:
+				obj := r.pkg.TypesInfo.ObjectOf(d.Name)
+				if !r.analyzer.dependentObj[obj] {
+					// Not dependent, keep as is
+					newDecls = append(newDecls, d)
+					continue
+				}
+
+				// It IS dependent.
+				sig := obj.Type().(*types.Signature)
+				if r.analyzer.HasDependentSignature(sig) {
+					// Dependent Signature -> Remove (Drop)
+					modified = true
+					continue
+				}
+
+				// Clean Signature -> Dispatcher
+				d.Body = r.createDispatcherBody(d.Name.Name, d.Type)
+				newDecls = append(newDecls, d)
+				modified = true
+
+			case *ast.GenDecl:
+				// Filter Specs
+				var newSpecs []ast.Spec
+				for _, spec := range d.Specs {
+					keep := true
+					switch s := spec.(type) {
+					case *ast.TypeSpec:
+						if r.analyzer.dependentObj[r.pkg.TypesInfo.ObjectOf(s.Name)] {
+							keep = false
+						}
+					case *ast.ValueSpec:
+						// If ANY name is dependent, is the whole spec dependent?
+						// "Variables are rewritten... if their type is one of the simd types"
+						// If we have `var x, y simd.Int8s`, both are dependent.
+						// If `var x int, y simd.Int8s` (can't happen in one spec unless tuple assign? No, Go syntax restricts type).
+						for _, name := range s.Names {
+							if r.analyzer.dependentObj[r.pkg.TypesInfo.ObjectOf(name)] {
+								keep = false
+								break
+							}
+						}
+					}
+					if keep {
+						newSpecs = append(newSpecs, spec)
+					} else {
+						modified = true
+					}
+				}
+
+				if len(newSpecs) > 0 {
+					d.Specs = newSpecs
+					newDecls = append(newDecls, d)
+				} else if len(d.Specs) > 0 {
+					// If we removed all specs, we effectively modified the file (by removing the decl)
+					// Even if modified=true was set in loop, we confirm it here.
+				}
+
+			default:
+				newDecls = append(newDecls, decl)
+			}
+		}
+
+		if modified {
+			// Update Decls
+			fileAST.Decls = newDecls
+
+			var buf strings.Builder
+			if err := format.Node(&buf, r.pkg.Fset, fileAST); err != nil {
+				return fmt.Errorf("formatting failed: %v", err)
+			}
+
+			res, err := imports.Process(filename, []byte(buf.String()), nil)
+			if err != nil {
+				return fmt.Errorf("imports processing failed for %s: %v", filename, err)
+			}
+
+			if err := os.WriteFile(filename, res, 0644); err != nil {
+				return err
+			}
+			fmt.Printf("Updated dispatcher (filtered): %s\n", filename)
+		}
+	}
+	return nil
 }
 
 func (r *Rewriter) createDispatcherBody(funcName string, funcType *ast.FuncType) *ast.BlockStmt {
@@ -250,35 +253,36 @@ func (r *Rewriter) generateForSize(k int) error {
 		return nil // Use default copy behavior
 	}
 
-    onSelector := func(se *ast.SelectorExpr) ast.Expr {
-        if x, ok := se.X.(*ast.Ident); ok {
-             fmt.Printf("DEBUG: onSelector checking %s.%s\n", x.Name, se.Sel.Name)
-             if obj, ok := r.pkg.TypesInfo.ObjectOf(x).(*types.PkgName); ok {
-                 fmt.Printf("DEBUG: onSelector obj pkg name: %s\n", obj.Imported().Name())
-                 if obj.Imported().Name() == "simd" {
-                     name := se.Sel.Name
-                     var width int
-                     switch name {
-                     case "Int8s", "Uint8s": width = 8
-                     case "Int16s", "Uint16s": width = 16
-                     case "Int32s", "Uint32s", "Float32s": width = 32
-                     case "Int64s", "Uint64s", "Float64s": width = 64
-                     }
-                     if width > 0 {
-                         count := k / width
-                         base := name[:len(name)-1]
-                         newName := fmt.Sprintf("%sx%d", base, count)
-                         fmt.Printf("DEBUG: onSelector REWRITING to archsimd.%s\n", newName)
-                         return &ast.SelectorExpr{
-                             X: ast.NewIdent("archsimd"),
-                             Sel: ast.NewIdent(newName),
-                         }
-                     }
-                 }
-             }
-        }
-        return nil
-    }
+	onSelector := func(se *ast.SelectorExpr) ast.Expr {
+		if x, ok := se.X.(*ast.Ident); ok {
+			if obj, ok := r.pkg.TypesInfo.ObjectOf(x).(*types.PkgName); ok {
+				if obj.Imported().Name() == "simd" {
+					name := se.Sel.Name
+					var width int
+					switch name {
+					case "Int8s", "Uint8s":
+						width = 8
+					case "Int16s", "Uint16s":
+						width = 16
+					case "Int32s", "Uint32s", "Float32s":
+						width = 32
+					case "Int64s", "Uint64s", "Float64s":
+						width = 64
+					}
+					if width > 0 {
+						count := k / width
+						base := name[:len(name)-1]
+						newName := fmt.Sprintf("%sx%d", base, count)
+						return &ast.SelectorExpr{
+							X:   ast.NewIdent("archsimd"),
+							Sel: ast.NewIdent(newName),
+						}
+					}
+				}
+			}
+		}
+		return nil
+	}
 
 	copier := &DeepCopier{OnIdent: onIdent, OnSelector: onSelector}
 
@@ -311,18 +315,18 @@ func (r *Rewriter) generateForSize(k int) error {
 		}
 
 		// Add imports
-        // Inject archsimd import
-        archSimdImport := &ast.GenDecl{
-            Tok: token.IMPORT,
-            Specs: []ast.Spec{
-                &ast.ImportSpec{
-                    Name: ast.NewIdent("archsimd"),
-                    Path: &ast.BasicLit{Kind: token.STRING, Value: "\"simd_flex/archsimd\""},
-                },
-            },
-        }
-        newFileAST.Decls = append([]ast.Decl{archSimdImport}, newFileAST.Decls...)
-        
+		// Inject archsimd import
+		archSimdImport := &ast.GenDecl{
+			Tok: token.IMPORT,
+			Specs: []ast.Spec{
+				&ast.ImportSpec{
+					Name: ast.NewIdent("archsimd"),
+					Path: &ast.BasicLit{Kind: token.STRING, Value: "\"simd_flex/archsimd\""},
+				},
+			},
+		}
+		newFileAST.Decls = append([]ast.Decl{archSimdImport}, newFileAST.Decls...)
+
 		for _, decl := range fileAST.Decls {
 			if genDecl, ok := decl.(*ast.GenDecl); ok && genDecl.Tok == token.IMPORT {
 				newFileAST.Decls = append([]ast.Decl{copier.CopyDecl(genDecl)}, newFileAST.Decls...)

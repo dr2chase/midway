@@ -16,6 +16,7 @@ type Analyzer struct {
 	pkg          *packages.Package
 	simdTypes    map[types.Type]bool
 	dependentObj map[types.Object]bool
+	nestingDepth int // within local scopes, dependent variables need not be renamed.
 }
 
 func NewAnalyzer(pkg *packages.Package) *Analyzer {
@@ -100,7 +101,7 @@ func (a *Analyzer) hasBodyDependency(fn *ast.FuncDecl) bool {
 					// So if we call "ComputeSum", and we are "MainCaller" (Clean).
 					// we remain "MainCaller" and call "ComputeSum".
 					// Perfect.
-					
+
 					sig := obj.Type().(*types.Signature)
 					if a.HasDependentSignature(sig) {
 						found = true
@@ -132,7 +133,9 @@ func (a *Analyzer) markIfDependent(obj types.Object) bool {
 	isDep := false
 	switch obj := obj.(type) {
 	case *types.Var:
-		isDep = a.isDependentType(obj.Type())
+		if obj.Kind() == types.PackageVar {
+			isDep = a.isDependentType(obj.Type())
+		}
 	case *types.TypeName:
 		isDep = a.isDependentType(obj.Type())
 	case *types.Func:
@@ -163,8 +166,10 @@ func (a *Analyzer) checkTypeRecursive(t types.Type, visited map[types.Type]bool)
 		return false // Break cycles
 	}
 	visited[t] = true
-    if t == nil { return false }
-    // fmt.Printf("DEBUG: checkTypeRecursive %s (%T)\n", t.String(), t)
+	if t == nil {
+		return false
+	}
+	// fmt.Printf("DEBUG: checkTypeRecursive %s (%T)\n", t.String(), t)
 
 	// Unwrap aliases
 	if named, ok := t.(*types.Named); ok {
@@ -203,8 +208,8 @@ func (a *Analyzer) checkTypeRecursive(t types.Type, visited map[types.Type]bool)
 				return true
 			}
 		}
-    case *types.Alias:
-        return a.checkTypeRecursive(t.Rhs(), visited)
+	case *types.Alias:
+		return a.checkTypeRecursive(t.Rhs(), visited)
 	}
 	return false
 }

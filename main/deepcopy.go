@@ -155,6 +155,8 @@ func (c *DeepCopier) CopyExpr(e ast.Expr) ast.Expr {
 		return &ast.MapType{Map: e.Map, Key: c.CopyExpr(e.Key), Value: c.CopyExpr(e.Value)}
 	case *ast.ChanType:
 		return &ast.ChanType{Begin: e.Begin, Arrow: e.Arrow, Dir: e.Dir, Value: c.CopyExpr(e.Value)}
+    case *ast.FuncType:
+        return c.CopyFuncType(e)
 	default:
 		// TODO: Handle other expressions (InterfaceType, StructType, etc if they appear in bodies/signatures we care about)
 		// For now, return as is (risky if modified in place later) or implement more.
