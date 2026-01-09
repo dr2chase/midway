@@ -86,9 +86,26 @@ func (a *Analyzer) hasBodyDependency(fn *ast.FuncDecl) bool {
 		if id, ok := n.(*ast.Ident); ok {
 			obj := a.pkg.TypesInfo.ObjectOf(id)
 			if obj != nil {
-				if a.dependentObj[obj] {
-					found = true
-					return false
+				// If it's a variable or type that is dependent, we are dependent.
+				if _, ok := obj.(*types.Func); !ok {
+					if a.dependentObj[obj] {
+						found = true
+						return false
+					}
+				} else {
+					// It is a function. Only propagate if it has a dependent signature.
+					// If it has a clean signature, it will be dispatched, so we don't need to be specialized just to call it.
+					// BUT wait, if we are NOT specialized, we can only call the dispatcher.
+					// The dispatcher is the original function.
+					// So if we call "ComputeSum", and we are "MainCaller" (Clean).
+					// we remain "MainCaller" and call "ComputeSum".
+					// Perfect.
+					
+					sig := obj.Type().(*types.Signature)
+					if a.HasDependentSignature(sig) {
+						found = true
+						return false
+					}
 				}
 				// Also check if it's a SIMD type directly (e.g. simd.Int32s)
 				// (markIfDependent handles checking dependentObj and isDependentType, but obj might be from another pkg)
