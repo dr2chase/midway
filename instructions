@@ -1,0 +1,23 @@
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+The goal is to write a prototype tool that rewrites simd-size-agnostic Go into simd-size-specific Go.
+
+This is an experiment to see how well source-to-source rewriting can solve a problem for architectures with scalable simd vectors (for example, RISCV or ARM64-SVE).
+
+The input to this tool is a set of ordinary-looking go source files in a directory (that is, a Go package), with the usual go.mod available for resolving imported packages.  Some of these files will contain imports of the "simd" package and references to simd vector types, which will be Int8s, Int16s, Int32s, Int64s, Uint8s, Uint16s, Uint32s, Uint64s, Float32s, Float64s (this package does not exist in this form yet).  That is, a simd vector is a sequence of an element type that has a specified bit length, where the sequence is within a vector whose bit length is the same across all those types at execution time, but not specified until execution time.  The vector length will be at least 128, always a power of two, and will be supplied on the command line of the tool.  If more than one vector length is specified on the command line, perform the rewrite for each vector length.  The portions of a go file that are rewritten for a specified simd vector size will be placed in a file with the original base name plus a suffix of "_simd<K>" where "<K>" is a supplied simd vector size.
+
+The rewrite tool will rewrite types, top-level variables, functions, and methods.  For now assume that there is no such thing as a simd constant.
+
+The rewrite tool will replace each of the simd types with a specialized type whose name is the original, plus a suffix of "_simd<K>" where "<K>" is the supplied simd vector size.  Furthermore, any other types whose size depends on a simd type -- for example, a struct with at least one field of type "simd.Int8s" or a slice or an array of "simd.Int8s" -- will be rewritten with the "_simd<K>" suffix.  This also includes type aliases ("type Foos = simd.Int8s") or type definitions ("type Bars simd.Int8s").  This also includes function and pointer types, since their use could lead to a simd type.  This transformation applies recursively; if a Go type depends on the width of a simd vector, then it should be specialized.  A type, variable, or function should not be rewritten if it does not depend on the simd vector size.
+
+Variables are rewritten, again with the "_simd<K>" suffix, if their type is one of the simd types or a simd-dependent types.
+
+This rewrite also extends to functions; a function whose body mentions one of these simd types or a simd-dependent type, or a simd-dependent variable, must also be rewritten in this way.  Note that types can be mentioned in generic instantiations, either of functions, or of types.  Again, if a function does not mention any of these types, then it does not need to be rewritten.  The function name is also rewritten with the "_simd<K>" suffix.  If a function does not mention simd itself, but contains a closure that does, rewrite the top level function.
+
+Calls to simd-dependent functions are treated differently.  In the first case, if the caller is not itself simd-dependent on some type or variable, then if the called simd-dependent function or method does not have a simd-dependent type as part of its signature (that is, a simd-dependent-typed receiver, parameter, or result), then that call does not trigger a simd dependence and is not rewritten.  Instead, the original called function, with its original name, is rewritten to dispatch through a switch on the value returned by "simd.VectorSize()", with a case for each of the sizes listed on the command line that forwards parameters and results to and from the corresponding simd-size-specific version of the original function.  In the second case, if the caller is simd-dependent (because of a mention of a simd-dependent type or variable or call to a function or method with a simd-dependent signature), then it is rewritten for a particular simd size K, and in that case, it should directly call the K-size-specialized version of the called function.  (This includes recursive calls.)
+
+The rewrites should be confined to the package in the specified directory; imported packages may be analyzed to determine simd dependence, but should not be rewritten.  Arranging rewrite of multiple packages is handled
+at another level using the Go package dependence graph, invoking this tool.
+
