@@ -225,24 +225,12 @@ func (r *Rewriter) generateForSize(k int) error {
 
 	// We handle identifiers by checking if they resolve to Dependent objects
 	onIdent := func(id *ast.Ident) *ast.Ident {
-		// Use TypesInfo from original package to check original object
-		// But wait, `id` here is the node we are visiting in the ORIGINAL AST (before copy)?
-		// NO, DeepCopier visits the ORIGINAL AST nodes in the input arguments.
-		// `DeepCopier.CopyIdent(id *ast.Ident)` -> `id` is the original node.
-		// So we can look it up!
-
 		obj := r.pkg.TypesInfo.ObjectOf(id)
 		if obj == nil {
 			return nil
 		}
 
-		// If the object is dependent (AND is defined in this package or is a SIMD type), we rename it.
-		// Special case: SIMD types from `simd` package -> `Int8s` -> `Int8s_simd128`
-		// Local variables marked dependent -> `x` -> `x_simd128`
-		// Top level funcs marked dependent -> `F` -> `F_simd128`
-
 		shouldRename := false
-
 		if r.analyzer.dependentObj[obj] {
 			shouldRename = true
 		} else if isBaseSimdTypeObj(obj) {
@@ -262,7 +250,37 @@ func (r *Rewriter) generateForSize(k int) error {
 		return nil // Use default copy behavior
 	}
 
-	copier := &DeepCopier{OnIdent: onIdent}
+    onSelector := func(se *ast.SelectorExpr) ast.Expr {
+        if x, ok := se.X.(*ast.Ident); ok {
+             fmt.Printf("DEBUG: onSelector checking %s.%s\n", x.Name, se.Sel.Name)
+             if obj, ok := r.pkg.TypesInfo.ObjectOf(x).(*types.PkgName); ok {
+                 fmt.Printf("DEBUG: onSelector obj pkg name: %s\n", obj.Imported().Name())
+                 if obj.Imported().Name() == "simd" {
+                     name := se.Sel.Name
+                     var width int
+                     switch name {
+                     case "Int8s", "Uint8s": width = 8
+                     case "Int16s", "Uint16s": width = 16
+                     case "Int32s", "Uint32s", "Float32s": width = 32
+                     case "Int64s", "Uint64s", "Float64s": width = 64
+                     }
+                     if width > 0 {
+                         count := k / width
+                         base := name[:len(name)-1]
+                         newName := fmt.Sprintf("%sx%d", base, count)
+                         fmt.Printf("DEBUG: onSelector REWRITING to archsimd.%s\n", newName)
+                         return &ast.SelectorExpr{
+                             X: ast.NewIdent("archsimd"),
+                             Sel: ast.NewIdent(newName),
+                         }
+                     }
+                 }
+             }
+        }
+        return nil
+    }
+
+	copier := &DeepCopier{OnIdent: onIdent, OnSelector: onSelector}
 
 	for _, fileAST := range r.pkg.Syntax {
 		tokenFile := r.pkg.Fset.File(fileAST.Pos())
@@ -293,6 +311,18 @@ func (r *Rewriter) generateForSize(k int) error {
 		}
 
 		// Add imports
+        // Inject archsimd import
+        archSimdImport := &ast.GenDecl{
+            Tok: token.IMPORT,
+            Specs: []ast.Spec{
+                &ast.ImportSpec{
+                    Name: ast.NewIdent("archsimd"),
+                    Path: &ast.BasicLit{Kind: token.STRING, Value: "\"simd_flex/archsimd\""},
+                },
+            },
+        }
+        newFileAST.Decls = append([]ast.Decl{archSimdImport}, newFileAST.Decls...)
+        
 		for _, decl := range fileAST.Decls {
 			if genDecl, ok := decl.(*ast.GenDecl); ok && genDecl.Tok == token.IMPORT {
 				newFileAST.Decls = append([]ast.Decl{copier.CopyDecl(genDecl)}, newFileAST.Decls...)

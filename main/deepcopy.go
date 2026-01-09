@@ -10,7 +10,13 @@ import (
 
 // DeepCopier clones AST nodes.
 type DeepCopier struct {
-	OnIdent func(*ast.Ident) *ast.Ident // If non-nil, called for every ident
+	// OnIdent, if provided, handles identifier cloning.
+	// If it returns nil, a default clone is performed.
+	OnIdent func(*ast.Ident) *ast.Ident
+    
+    // OnSelector, if provided, handles selector expression cloning.
+    // If it returns nil, a default clone is performed.
+    OnSelector func(*ast.SelectorExpr) ast.Expr
 }
 
 func (c *DeepCopier) CopyDecl(d ast.Decl) ast.Decl {
@@ -90,6 +96,11 @@ func (c *DeepCopier) CopyExpr(e ast.Expr) ast.Expr {
 	case *ast.ArrayType:
 		return &ast.ArrayType{Lbrack: e.Lbrack, Len: c.CopyExpr(e.Len), Elt: c.CopyExpr(e.Elt)}
 	case *ast.SelectorExpr:
+        if c.OnSelector != nil {
+            if sub := c.OnSelector(e); sub != nil {
+                return sub
+            }
+        }
 		return &ast.SelectorExpr{X: c.CopyExpr(e.X), Sel: c.CopyIdent(e.Sel)}
 	case *ast.CallExpr:
 		newE := &ast.CallExpr{
