@@ -96,7 +96,7 @@ func (a *Analyzer) hasBodyDependency(fn *ast.FuncDecl) bool {
 				} else {
 					// It is a function. Only propagate if it has a dependent signature.
 					// If it has a clean signature, it will be dispatched, so we don't need to be specialized just to call it.
-					// BUT wait, if we are NOT specialized, we can only call the dispatcher.
+					// If we are NOT specialized, we can only call the dispatcher.
 					// The dispatcher is the original function.
 					// So if we call "ComputeSum", and we are "MainCaller" (Clean).
 					// we remain "MainCaller" and call "ComputeSum".
@@ -141,8 +141,14 @@ func (a *Analyzer) markIfDependent(obj types.Object) bool {
 	case *types.Func:
 		// Check signature
 		sig := obj.Type().(*types.Signature)
-		if a.isDependentType(sig.Params()) || a.isDependentType(sig.Results()) || (sig.Recv() != nil && a.isDependentType(sig.Recv().Type())) {
-			isDep = true
+		if rcv := sig.Recv(); a.isDependentType(sig.Params()) || a.isDependentType(sig.Results()) || (rcv != nil && a.isDependentType(rcv.Type())) {
+			// NOT dependent if it is a mehod of one of the base SIMD types.
+			// TODO: what about aliases of base SIMD types?
+			if rcv == nil {
+				isDep = true
+			} else if named, ok := rcv.Type().(*types.Named); !ok || !isBaseSimdType(named) {
+				isDep = true
+			}
 		}
 	}
 
@@ -169,7 +175,6 @@ func (a *Analyzer) checkTypeRecursive(t types.Type, visited map[types.Type]bool)
 	if t == nil {
 		return false
 	}
-	// fmt.Printf("DEBUG: checkTypeRecursive %s (%T)\n", t.String(), t)
 
 	// Unwrap aliases
 	if named, ok := t.(*types.Named); ok {
