@@ -34,11 +34,20 @@ func ip(x, y []float32) float32 {
 			Mul(simd.LoadFloat32SlicePart(y[i:])))
 	}
 
-	l := a.Len()
-	for l > 1 {
-		a = a.AddPairs(a)
-		l /= 2
+	s := make([]float32, a.Len())
+	a.StoreSlice(s)
+	var r float32
+	for _, e := range s {
+		r += e
 	}
+	return r
 
-	return a.GetElem(0)
+	// Would like to do this but we lack the tools.
+	// l := a.Len()
+	// for l > 1 {
+	// 	a = a.AddPairs(a)
+	// 	l /= 2
+	// }
+
+	// return a.GetElem(0)
 }

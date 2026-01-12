@@ -141,7 +141,7 @@ func (r *Rewriter) generateDispatchers() error {
 				keep := true
 				for _, c := range cg.List {
 					text := strings.TrimSpace(c.Text)
-					if strings.HasPrefix(text, "//go:build") || strings.HasPrefix(text, "// +build") && strings.Contains(text, "midway") {
+					if strings.HasPrefix(text, "//go:build") || (strings.HasPrefix(text, "// +build") && strings.Contains(text, "midway")) {
 						keep = false
 						break
 					}
@@ -157,6 +157,23 @@ func (r *Rewriter) generateDispatchers() error {
 				}
 			}
 			fileAST.Comments = newComments
+
+            // Replace imports
+            for _, decl := range fileAST.Decls {
+                if genDecl, ok := decl.(*ast.GenDecl); ok && genDecl.Tok == token.IMPORT {
+                    for _, spec := range genDecl.Specs {
+                        if imp, ok := spec.(*ast.ImportSpec); ok {
+                            // Check if path ends with "/simd" or is "simd"
+                            pathVal := strings.Trim(imp.Path.Value, "\"")
+                            if pathVal == "simd_flex/simd" || strings.HasSuffix(pathVal, "/simd") {
+                                // Replace with archsimd
+                                imp.Name = ast.NewIdent("archsimd")
+                                imp.Path.Value = fmt.Sprintf("\"%s/archsimd\"", *archsimdPfxFlag)
+                            }
+                        }
+                    }
+                }
+            }
 
 			var buf strings.Builder
 			// Prepend build tag
@@ -184,7 +201,7 @@ func (r *Rewriter) generateDispatchers() error {
 }
 
 func (r *Rewriter) createDispatcherBody(funcName string, funcType *ast.FuncType) *ast.BlockStmt {
-	// switch simd.MaxVectorSize() { ... }
+	// switch archsimd.MaxVectorSize() { ... }
 
 	// Build call arguments
 	var args []ast.Expr
@@ -200,7 +217,7 @@ func (r *Rewriter) createDispatcherBody(funcName string, funcType *ast.FuncType)
 	switchStmt := &ast.SwitchStmt{
 		Tag: &ast.CallExpr{
 			Fun: &ast.SelectorExpr{
-				X:   ast.NewIdent("simd"),
+				X:   ast.NewIdent("archsimd"),
 				Sel: ast.NewIdent("MaxVectorSize"),
 			},
 		},
@@ -348,6 +365,30 @@ func (r *Rewriter) generateForSize(k int) error {
 			Decls: newDecls,
 		}
 
+		// Filter out existing build tags from comments
+		var newComments []*ast.CommentGroup
+		var newBuild = "//go:build !midway"
+		for _, cg := range fileAST.Comments {
+			keep := true
+			for _, c := range cg.List {
+				text := strings.TrimSpace(c.Text)
+				if strings.HasPrefix(text, "//go:build") || (strings.HasPrefix(text, "// +build") && strings.Contains(text, "midway")) {
+					keep = false
+					break
+				}
+				pfx := "//+go:build"
+				if strings.HasPrefix(text, pfx) {
+					suffix := text[len(pfx):]
+					newBuild = newBuild + " &&" + suffix
+					keep = false
+				}
+			}
+			if keep {
+				newComments = append(newComments, cg)
+			}
+		}
+		newFileAST.Comments = newComments
+
 		// Add imports
 		// Inject archsimd import
 		archSimdImport := &ast.GenDecl{
@@ -371,6 +412,9 @@ func (r *Rewriter) generateForSize(k int) error {
 		outName := filepath.Join(filepath.Dir(filename), baseName+suffix+".go")
 
 		var buf strings.Builder
+		// Prepend build tag
+		buf.WriteString(newBuild + "\n\n")
+
 		if err := format.Node(&buf, r.pkg.Fset, newFileAST); err != nil {
 			return fmt.Errorf("formatting failed: %v", err)
 		}
