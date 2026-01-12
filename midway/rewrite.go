@@ -287,22 +287,26 @@ func (r *Rewriter) generateForSize(k int) error {
 		if x, ok := se.X.(*ast.Ident); ok {
 			if obj, ok := r.pkg.TypesInfo.ObjectOf(x).(*types.PkgName); ok {
 				if obj.Imported().Name() == "simd" {
+					isLoad := false 
+					suffix := "Slice"
 					name := se.Sel.Name
-					var width int
-					switch name {
-					case "Int8s", "Uint8s", "Mask8s":
-						width = 8
-					case "Int16s", "Uint16s", "Mask16s":
-						width = 16
-					case "Int32s", "Uint32s", "Float32s", "Mask32s":
-						width = 32
-					case "Int64s", "Uint64s", "Float64s", "Mask64s":
-						width = 64
+					// Looking for simd.Load<Type><Size>Slice[Part].
+					// If so, extract <Type><Size> and append "s" to get the type translation.
+					if p := strings.Index(name, "Slice"); p > 0 && strings.HasPrefix(name, "Load") {
+						isLoad = true
+						if strings.HasSuffix(name, "SlicePart") {
+							suffix = "SlicePart"
+						}
+						name = name[len("Load"):p] + "s"
 					}
+					width := nameToWidth(name)
 					if width > 0 {
 						count := k / width
 						base := name[:len(name)-1]
 						newName := fmt.Sprintf("%sx%d", base, count)
+						if isLoad {
+							newName = "Load" + newName + suffix	
+						}
 						return &ast.SelectorExpr{
 							X:   ast.NewIdent("archsimd"),
 							Sel: ast.NewIdent(newName),
@@ -385,6 +389,21 @@ func (r *Rewriter) generateForSize(k int) error {
 		fmt.Printf("Generated %s\n", outName)
 	}
 	return nil
+}
+
+func nameToWidth(name string) int {
+	var width int
+	switch name {
+	case "Int8s", "Uint8s", "Mask8s":
+		width = 8
+	case "Int16s", "Uint16s", "Mask16s":
+		width = 16
+	case "Int32s", "Uint32s", "Float32s", "Mask32s":
+		width = 32
+	case "Int64s", "Uint64s", "Float64s", "Mask64s":
+		width = 64
+	}
+	return width
 }
 
 func (r *Rewriter) shouldIncludeDecl(decl ast.Decl) bool {
