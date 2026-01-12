@@ -1,36 +1,47 @@
 package archsimd
 
-import "simd_flex/simd"
+type Int8x16 struct { v [16]int8 }
+type Int16x8 struct { v [8]int16 }
+type Int32x4 struct { v [4]int32 }
+type Int64x2 struct { v [2]int64 }
+type Uint8x16 struct { v [16]uint8 }
+type Uint16x8 struct { v [8]uint16 }
+type Uint32x4 struct { v [4]uint32 }
+type Uint64x2 struct { v [2]uint64 }
+type Float32x4 struct { v [4]float32 }
+type Float64x2 struct { v [2]float64 }
 
-type Int8x16 = simd.Int8s_simd128
-type Int16x8 = simd.Int16s_simd128
-type Int32x4 = simd.Int32s_simd128
-type Int64x2 = simd.Int64s_simd128
-type Uint8x16 = simd.Uint8s_simd128
-type Uint16x8 = simd.Uint16s_simd128
-type Uint32x4 = simd.Uint32s_simd128
-type Uint64x2 = simd.Uint64s_simd128
-type Float32x4 = simd.Float32s_simd128
-type Float64x2 = simd.Float64s_simd128
+type Int8x32 struct { v [32]int8 }
+type Int16x16 struct { v [16]int16 }
+type Int32x8 struct { v [8]int32 }
+type Int64x4 struct { v [4]int64 }
+type Uint8x32 struct { v [32]uint8 }
+type Uint16x16 struct { v [16]uint16 }
+type Uint32x8 struct { v [8]uint32 }
+type Uint64x4 struct { v [4]uint64 }
+type Float32x8 struct { v [8]float32 }
+type Float64x4 struct { v [4]float64 }
 
-type Int8x32 = simd.Int8s_simd256
-type Int16x16 = simd.Int16s_simd256
-type Int32x8 = simd.Int32s_simd256
-type Int64x4 = simd.Int64s_simd256
-type Uint8x32 = simd.Uint8s_simd256
-type Uint16x16 = simd.Uint16s_simd256
-type Uint32x8 = simd.Uint32s_simd256
-type Uint64x4 = simd.Uint64s_simd256
-type Float32x8 = simd.Float32s_simd256
-type Float64x4 = simd.Float64s_simd256
+type Int8x64 struct { v [64]int8 }
+type Int16x32 struct { v [32]int16 }
+type Int32x16 struct { v [16]int32 }
+type Int64x8 struct { v [8]int64 }
+type Uint8x64 struct { v [64]uint8 }
+type Uint16x32 struct { v [32]uint16 }
+type Uint32x16 struct { v [16]uint32 }
+type Uint64x8 struct { v [8]uint64 }
+type Float32x16 struct { v [16]float32 }
+type Float64x8 struct { v [8]float64 }
 
-type Int8x64 = simd.Int8s_simd512
-type Int16x32 = simd.Int16s_simd512
-type Int32x16 = simd.Int32s_simd512
-type Int64x8 = simd.Int64s_simd512
-type Uint8x64 = simd.Uint8s_simd512
-type Uint16x32 = simd.Uint16s_simd512
-type Uint32x16 = simd.Uint32s_simd512
-type Uint64x8 = simd.Uint64s_simd512
-type Float32x16 = simd.Float32s_simd512
-type Float64x8 = simd.Float64s_simd512
+type Mask8x16 struct { v [16]int8 }
+type Mask16x8 struct { v [8]int16 }
+type Mask32x4 struct { v [4]int32 }
+type Mask64x2 struct { v [2]int64 }
+type Mask8x32 struct { v [32]int8 }
+type Mask16x16 struct { v [16]int16 }
+type Mask32x8 struct { v [8]int32 }
+type Mask64x4 struct { v [4]int64 }
+type Mask8x64 struct { v [64]int8 }
+type Mask16x32 struct { v [32]int16 }
+type Mask32x16 struct { v [16]int32 }
+type Mask64x8 struct { v [8]int64 }

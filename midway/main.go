@@ -14,9 +14,9 @@ import (
 )
 
 var (
-	sizesFlag     = flag.String("sizes", "128", "comma-separated list of vector sizes (e.g., 128,256)")
-	dirFlag       = flag.String("dir", ".", "directory to process")
-	archsimdPfxFlag = flag.String("prefix", "simd_flex", "prefix for the archsimd package")
+	sizesFlag       = flag.String("sizes", "128", "comma-separated list of vector sizes (e.g., 128,256)")
+	dirFlag         = flag.String("dir", ".", "directory to process")
+	archsimdPfxFlag = flag.String("prefix", "simd", "prefix for the archsimd package")
 )
 
 func main() {
@@ -45,8 +45,8 @@ func main() {
 
 func run(dir string, sizes []int) error {
 	cfg := &packages.Config{
-		Mode: packages.NeedName | packages.NeedFiles | packages.NeedSyntax | packages.NeedTypes | packages.NeedTypesInfo | packages.NeedDeps | packages.NeedImports,
-		Dir:  dir,
+		Mode:       packages.NeedName | packages.NeedFiles | packages.NeedSyntax | packages.NeedTypes | packages.NeedTypesInfo | packages.NeedDeps | packages.NeedImports,
+		Dir:        dir,
 		BuildFlags: []string{"-tags=midway"},
 	}
 	pkgs, err := packages.Load(cfg, ".")

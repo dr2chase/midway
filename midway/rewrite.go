@@ -184,7 +184,7 @@ func (r *Rewriter) generateDispatchers() error {
 }
 
 func (r *Rewriter) createDispatcherBody(funcName string, funcType *ast.FuncType) *ast.BlockStmt {
-	// switch simd.VectorSize() { ... }
+	// switch simd.MaxVectorSize() { ... }
 
 	// Build call arguments
 	var args []ast.Expr
@@ -201,7 +201,7 @@ func (r *Rewriter) createDispatcherBody(funcName string, funcType *ast.FuncType)
 		Tag: &ast.CallExpr{
 			Fun: &ast.SelectorExpr{
 				X:   ast.NewIdent("simd"),
-				Sel: ast.NewIdent("VectorSize"),
+				Sel: ast.NewIdent("MaxVectorSize"),
 			},
 		},
 		Body: &ast.BlockStmt{
