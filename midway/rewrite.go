@@ -134,20 +134,50 @@ func (r *Rewriter) generateDispatchers() error {
 			// Update Decls
 			fileAST.Decls = newDecls
 
+			// Filter out existing build tags to prevent duplicates/conflicts
+			var newComments []*ast.CommentGroup
+			var newBuild = "//go:build !midway"
+			for _, cg := range fileAST.Comments {
+				keep := true
+				for _, c := range cg.List {
+					text := strings.TrimSpace(c.Text)
+					if strings.HasPrefix(text, "//go:build") || strings.HasPrefix(text, "// +build") && strings.Contains(text, "midway") {
+						keep = false
+						break
+					}
+					pfx := "//+go:build"
+					if strings.HasPrefix(text, pfx) {
+						suffix := text[len(pfx):]
+						newBuild = newBuild + " &&" + suffix
+						keep = false
+					}
+				}
+				if keep {
+					newComments = append(newComments, cg)
+				}
+			}
+			fileAST.Comments = newComments
+
 			var buf strings.Builder
+			// Prepend build tag
+			buf.WriteString(newBuild + "\n\n")
+
 			if err := format.Node(&buf, r.pkg.Fset, fileAST); err != nil {
 				return fmt.Errorf("formatting failed: %v", err)
 			}
 
-			res, err := imports.Process(filename, []byte(buf.String()), nil)
+			baseName := strings.TrimSuffix(filepath.Base(filename), ".go")
+			outName := filepath.Join(filepath.Dir(filename), baseName+"_simd.go")
+
+			res, err := imports.Process(outName, []byte(buf.String()), nil)
 			if err != nil {
-				return fmt.Errorf("imports processing failed for %s: %v", filename, err)
+				return fmt.Errorf("imports processing failed for %s: %v", outName, err)
 			}
 
-			if err := os.WriteFile(filename, res, 0644); err != nil {
+			if err := os.WriteFile(outName, res, 0644); err != nil {
 				return err
 			}
-			fmt.Printf("Updated dispatcher (filtered): %s\n", filename)
+			fmt.Printf("Generated dispatcher (filtered): %s\n", outName)
 		}
 	}
 	return nil
@@ -260,13 +290,13 @@ func (r *Rewriter) generateForSize(k int) error {
 					name := se.Sel.Name
 					var width int
 					switch name {
-					case "Int8s", "Uint8s":
+					case "Int8s", "Uint8s", "Mask8s":
 						width = 8
-					case "Int16s", "Uint16s":
+					case "Int16s", "Uint16s", "Mask16s":
 						width = 16
-					case "Int32s", "Uint32s", "Float32s":
+					case "Int32s", "Uint32s", "Float32s", "Mask32s":
 						width = 32
-					case "Int64s", "Uint64s", "Float64s":
+					case "Int64s", "Uint64s", "Float64s", "Mask64s":
 						width = 64
 					}
 					if width > 0 {
@@ -321,7 +351,7 @@ func (r *Rewriter) generateForSize(k int) error {
 			Specs: []ast.Spec{
 				&ast.ImportSpec{
 					Name: ast.NewIdent("archsimd"),
-					Path: &ast.BasicLit{Kind: token.STRING, Value: "\"simd_flex/archsimd\""},
+					Path: &ast.BasicLit{Kind: token.STRING, Value: fmt.Sprintf("\"%s/archsimd\"", *archsimdPfxFlag)},
 				},
 			},
 		}

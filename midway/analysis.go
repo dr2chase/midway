@@ -229,6 +229,7 @@ func isBaseSimdTypeObj(obj types.Object) bool {
 	switch obj.Name() {
 	case "Int8s", "Int16s", "Int32s", "Int64s",
 		"Uint8s", "Uint16s", "Uint32s", "Uint64s",
+		"Mask8s", "Mask16s", "Mask32s", "Mask64s",
 		"Float32s", "Float64s":
 		return true
 	}

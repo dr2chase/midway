@@ -2,6 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build midway
+
+// Add this build tag to the generated file
+//+go:build !ignore
+// a second comment that currently gets eaten.
+
 package testdata
 
 import (
