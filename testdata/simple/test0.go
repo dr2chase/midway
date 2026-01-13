@@ -115,8 +115,31 @@ func DepCallsDep() (x, y any, b bool) {
 	return
 }
 
+type haslen interface {
+	Len() int
+}
+
+func generic[T haslen](x int) int {
+	var v T
+	return x + v.Len()
+}
+
+func depGeneric[T fmt.Stringer](x T) int {
+	s := x.String()
+	var bs []uint8 = []byte(s)
+	v := simd.LoadUint8SlicePart(bs)
+	v = v.Add(v)
+	v.StoreSlice(bs)
+	return int(bs[0])
+}
+
+// signature is not generic, but implementation is
+func instGeneric(x int) int {
+	return generic[simd.Int8s](x)
+}
+
 // Caller that is NOT dependent calls one that IS dependent.
 func MainCaller() {
 	res := ComputeSum(10)
-	fmt.Println(res)
+	fmt.Println(res + instGeneric(11))
 }

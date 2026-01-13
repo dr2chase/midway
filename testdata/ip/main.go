@@ -42,7 +42,8 @@ func ip(x, y []float32) float32 {
 	}
 	return r
 
-	// Would like to do this but we lack the tools.
+	// Would like to do this but methods are not
+	// defined for all the types we need, sigh.
 	// l := a.Len()
 	// for l > 1 {
 	// 	a = a.AddPairs(a)

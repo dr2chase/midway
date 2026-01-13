@@ -158,22 +158,22 @@ func (r *Rewriter) generateDispatchers() error {
 			}
 			fileAST.Comments = newComments
 
-            // Replace imports
-            for _, decl := range fileAST.Decls {
-                if genDecl, ok := decl.(*ast.GenDecl); ok && genDecl.Tok == token.IMPORT {
-                    for _, spec := range genDecl.Specs {
-                        if imp, ok := spec.(*ast.ImportSpec); ok {
-                            // Check if path ends with "/simd" or is "simd"
-                            pathVal := strings.Trim(imp.Path.Value, "\"")
-                            if pathVal == "simd_flex/simd" || strings.HasSuffix(pathVal, "/simd") {
-                                // Replace with archsimd
-                                imp.Name = ast.NewIdent("archsimd")
-                                imp.Path.Value = fmt.Sprintf("\"%s/archsimd\"", *archsimdPfxFlag)
-                            }
-                        }
-                    }
-                }
-            }
+			// Replace imports
+			for _, decl := range fileAST.Decls {
+				if genDecl, ok := decl.(*ast.GenDecl); ok && genDecl.Tok == token.IMPORT {
+					for _, spec := range genDecl.Specs {
+						if imp, ok := spec.(*ast.ImportSpec); ok {
+							// Check if path ends with "/simd" or is "simd"
+							pathVal := strings.Trim(imp.Path.Value, "\"")
+							if pathVal == "simd" || strings.HasSuffix(pathVal, "/simd") {
+								// Replace with archsimd
+								imp.Name = ast.NewIdent("archsimd")
+								imp.Path.Value = fmt.Sprintf("\"%s/archsimd\"", *archsimdPfxFlag)
+							}
+						}
+					}
+				}
+			}
 
 			var buf strings.Builder
 			// Prepend build tag
@@ -213,6 +213,16 @@ func (r *Rewriter) createDispatcherBody(funcName string, funcType *ast.FuncType)
 		}
 	}
 
+	// Build type arguments if any
+	var typeArgs []ast.Expr
+	if funcType.TypeParams != nil {
+		for _, field := range funcType.TypeParams.List {
+			for _, name := range field.Names {
+				typeArgs = append(typeArgs, name)
+			}
+		}
+	}
+
 	// Create Switch Stmt
 	switchStmt := &ast.SwitchStmt{
 		Tag: &ast.CallExpr{
@@ -227,9 +237,26 @@ func (r *Rewriter) createDispatcherBody(funcName string, funcType *ast.FuncType)
 	}
 
 	for _, k := range r.sizes {
-		// case K: return funcName_simdK(args...)
+		// case K: return funcName_simdK[T](args...)
+		fnIdent := ast.NewIdent(fmt.Sprintf("%s_simd%d", funcName, k))
+		var fun ast.Expr = fnIdent
+
+		if len(typeArgs) > 0 {
+			if len(typeArgs) == 1 {
+				fun = &ast.IndexExpr{
+					X:     fnIdent,
+					Index: typeArgs[0],
+				}
+			} else {
+				fun = &ast.IndexListExpr{
+					X:       fnIdent,
+					Indices: typeArgs,
+				}
+			}
+		}
+
 		callExpr := &ast.CallExpr{
-			Fun:  ast.NewIdent(fmt.Sprintf("%s_simd%d", funcName, k)),
+			Fun:  fun,
 			Args: args,
 		}
 
@@ -304,7 +331,7 @@ func (r *Rewriter) generateForSize(k int) error {
 		if x, ok := se.X.(*ast.Ident); ok {
 			if obj, ok := r.pkg.TypesInfo.ObjectOf(x).(*types.PkgName); ok {
 				if obj.Imported().Name() == "simd" {
-					isLoad := false 
+					isLoad := false
 					suffix := "Slice"
 					name := se.Sel.Name
 					// Looking for simd.Load<Type><Size>Slice[Part].
@@ -322,7 +349,7 @@ func (r *Rewriter) generateForSize(k int) error {
 						base := name[:len(name)-1]
 						newName := fmt.Sprintf("%sx%d", base, count)
 						if isLoad {
-							newName = "Load" + newName + suffix	
+							newName = "Load" + newName + suffix
 						}
 						return &ast.SelectorExpr{
 							X:   ast.NewIdent("archsimd"),
