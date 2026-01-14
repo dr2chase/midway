@@ -1,4 +1,4 @@
-module simd_flex
+module github.com/dr2chase/midway
 
 go 1.25.0
 

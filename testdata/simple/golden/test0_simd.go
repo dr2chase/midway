@@ -1,10 +1,15 @@
-//go:build !midway && !ignore
+//go:build !midway
+
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
 
 package testdata
 
 import (
 	"fmt"
-	archsimd "simd/archsimd"
+
+	"github.com/dr2chase/midway/midway"
 )
 
 // A SIMD-dependent type alias
@@ -27,7 +32,7 @@ import (
 func ComputeSum(n int) int {
 	switch
 	// Uses SIMD internally
-	archsimd.MaxVectorSize() {
+	midway.MaxVectorSize() {
 	case 128:
 		return ComputeSum_simd128(n)
 	case 256:
@@ -41,10 +46,8 @@ func ComputeSum(n int) int {
 
 // A dependent function with a standard signature
 func MentionsPPair(a any) any {
-	switch archsimd.MaxVectorSize() {
+	switch midway.MaxVectorSize() {
 	case 128:
-
-		// A dependent function with a standard signature
 		return MentionsPPair_simd128(a)
 	case 256:
 		return MentionsPPair_simd256(a)
@@ -55,12 +58,12 @@ func MentionsPPair(a any) any {
 	}
 }
 
+// A dependent function with a standard signature
 func MentionsAdder(a any) any {
-	switch archsimd.MaxVectorSize() {
-	case
+	switch midway.MaxVectorSize() {
+	case 128:
 
 		// A dependent function with a standard signature
-		128:
 		return MentionsAdder_simd128(a)
 	case 256:
 		return MentionsAdder_simd256(a)
@@ -72,7 +75,7 @@ func MentionsAdder(a any) any {
 }
 
 func InAClosure(x any) any {
-	switch archsimd.MaxVectorSize() {
+	switch midway.MaxVectorSize() {
 	case 128:
 		return InAClosure_simd128(x)
 	case 256:
@@ -98,7 +101,7 @@ var anyVc any // = &vc // this looks like a problem.
 
 // init depends on vc
 func init() {
-	switch archsimd.MaxVectorSize(
+	switch midway.MaxVectorSize(
 
 	// A dependent function with a standard signature
 	// that calls two dependent functions, one with a dependent
@@ -126,7 +129,7 @@ func init() {
 }
 
 func DepCallsDep() (x, y any, b bool) {
-	switch archsimd.MaxVectorSize() {
+	switch midway.MaxVectorSize() {
 	case 128:
 		return DepCallsDep_simd128()
 	case 256:
@@ -148,7 +151,7 @@ func generic[T haslen](x int) int {
 }
 
 func depGeneric[T fmt.Stringer](x T) int {
-	switch archsimd.MaxVectorSize() {
+	switch midway.MaxVectorSize() {
 	case 128:
 		return depGeneric_simd128[T](x)
 	case 256:
@@ -162,7 +165,7 @@ func depGeneric[T fmt.Stringer](x T) int {
 
 // signature is not generic, but implementation is
 func instGeneric(x int) int {
-	switch archsimd.MaxVectorSize() {
+	switch midway.MaxVectorSize() {
 	case 128:
 
 		// Caller that is NOT dependent calls one that IS dependent.

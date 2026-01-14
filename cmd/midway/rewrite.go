@@ -158,7 +158,11 @@ func (r *Rewriter) generateDispatchers() error {
 			}
 			fileAST.Comments = newComments
 
-			// Replace imports
+			midwayImport := &ast.ImportSpec{
+				Path: &ast.BasicLit{Kind: token.STRING, Value: "\"" + *midwayPackage + "\""},
+			}
+
+			// Replace imports (there must be at least one, if the file was modified)
 			for _, decl := range fileAST.Decls {
 				if genDecl, ok := decl.(*ast.GenDecl); ok && genDecl.Tok == token.IMPORT {
 					for _, spec := range genDecl.Specs {
@@ -171,6 +175,10 @@ func (r *Rewriter) generateDispatchers() error {
 								imp.Path.Value = fmt.Sprintf("\"%s/archsimd\"", *archsimdPfxFlag)
 							}
 						}
+					}
+					if midwayImport != nil {
+						genDecl.Specs = append(genDecl.Specs, midwayImport)
+						midwayImport = nil
 					}
 				}
 			}
@@ -227,7 +235,7 @@ func (r *Rewriter) createDispatcherBody(funcName string, funcType *ast.FuncType)
 	switchStmt := &ast.SwitchStmt{
 		Tag: &ast.CallExpr{
 			Fun: &ast.SelectorExpr{
-				X:   ast.NewIdent("archsimd"),
+				X:   ast.NewIdent("midway"),
 				Sel: ast.NewIdent("MaxVectorSize"),
 			},
 		},
@@ -388,31 +396,27 @@ func (r *Rewriter) generateForSize(k int) error {
 		}
 
 		newFileAST := &ast.File{
-			Name:  ast.NewIdent(r.pkg.Name),
-			Decls: newDecls,
+			Name:    ast.NewIdent(r.pkg.Name),
+			Package: fileAST.Package, // Preserve Package Pos to avoid comment interleaving
+			Decls:   newDecls,
 		}
 
-		// Filter out existing build tags from comments
+		// Replace "midway" with "!midway"
 		var newComments []*ast.CommentGroup
-		var newBuild = "//go:build !midway"
+
 		for _, cg := range fileAST.Comments {
-			keep := true
+			newcg := &ast.CommentGroup{}
 			for _, c := range cg.List {
 				text := strings.TrimSpace(c.Text)
-				if strings.HasPrefix(text, "//go:build") || (strings.HasPrefix(text, "// +build") && strings.Contains(text, "midway")) {
-					keep = false
-					break
-				}
-				pfx := "//+go:build"
-				if strings.HasPrefix(text, pfx) {
-					suffix := text[len(pfx):]
-					newBuild = newBuild + " &&" + suffix
-					keep = false
-				}
+				if i := strings.Index(text, "midway"); i > 0 && strings.HasPrefix(text, "//go:build") && text[i-1] != '!' {
+					newC := *c
+					newC.Text = strings.ReplaceAll(c.Text, "midway", "!midway")
+					newcg.List = append(newcg.List, &newC)
+				} else {
+					newcg.List = append(newcg.List, c)	
+				}	
 			}
-			if keep {
-				newComments = append(newComments, cg)
-			}
+			newComments = append(newComments, newcg)
 		}
 		newFileAST.Comments = newComments
 
@@ -439,8 +443,6 @@ func (r *Rewriter) generateForSize(k int) error {
 		outName := filepath.Join(filepath.Dir(filename), baseName+suffix+".go")
 
 		var buf strings.Builder
-		// Prepend build tag
-		buf.WriteString(newBuild + "\n\n")
 
 		if err := format.Node(&buf, r.pkg.Fset, newFileAST); err != nil {
 			return fmt.Errorf("formatting failed: %v", err)

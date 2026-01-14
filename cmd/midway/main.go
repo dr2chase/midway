@@ -17,6 +17,7 @@ var (
 	sizesFlag       = flag.String("sizes", "128", "comma-separated list of vector sizes (e.g., 128,256)")
 	dirFlag         = flag.String("dir", ".", "directory to process")
 	archsimdPfxFlag = flag.String("prefix", "simd", "prefix for the archsimd package")
+	midwayPackage   = flag.String("midway", "github.com/dr2chase/midway/midway", "package name for midway helpers")
 )
 
 func main() {

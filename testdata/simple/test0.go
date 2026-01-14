@@ -3,16 +3,13 @@
 // license that can be found in the LICENSE file.
 
 //go:build midway
-
-// Add this build tag to the generated file
-//+go:build !ignore
-// a second comment that currently gets eaten.
+//go:build midway && !ignore
 
 package testdata
 
 import (
 	"fmt"
-	"simd_flex/simd"
+	"github.com/dr2chase/midway/simd"
 )
 
 // A SIMD-dependent type alias
