@@ -34,6 +34,24 @@ func main() {
 	files := []string{"ops_amd64.go", "types_amd64.go", "other_gen_amd64.go", "extra_amd64.go", "maskmerge_gen_amd64.go", "shuffles_amd64.go", "slice_gen_amd64.go", "slicepart_amd64.go", "string.go"}
 
 	// Categories based on bit size
+	// 128-bit map: ElementType -> TypeName
+	map128 := map[string]string{
+		"Int8":    "Int8x16",
+		"Int16":   "Int16x8",
+		"Int32":   "Int32x4",
+		"Int64":   "Int64x2",
+		"Uint8":   "Uint8x16",
+		"Uint16":  "Uint16x8",
+		"Uint32":  "Uint32x4",
+		"Uint64":  "Uint64x2",
+		"Float32": "Float32x4",
+		"Float64": "Float64x2",
+		"Mask8":   "Mask8x16",
+		"Mask16":  "Mask16x8",
+		"Mask32":  "Mask32x4",
+		"Mask64":  "Mask64x2",
+	}
+
 	// 256-bit map: ElementType -> TypeName
 	map256 := map[string]string{
 		"Int8":    "Int8x32",
@@ -74,6 +92,9 @@ func main() {
 	fset := token.NewFileSet()
 
 	knownReceivers := make(map[string]string)
+	for k, v := range map128 {
+		knownReceivers[v] = k + "s"
+	}
 	for k, v := range map256 {
 		knownReceivers[v] = k + "s"
 	}
@@ -136,6 +157,10 @@ func main() {
 						pe("Skipping fixed-size Store method method %s.%s\n", recvType, methodName)
 						continue
 					}
+					if methodName == "ToBits" {
+						pe("Skipping ToBits method (has varying return type) %s.%s\n", recvType, methodName)
+						continue
+					}
 					if lastChar := methodName[len(methodName)-1]; unicode.IsDigit(rune(lastChar)) && lastChar != eltType[len(eltType)-1] {
 						pe("Skipping size-changing method %s.%s\n", recvType, methodName)
 						continue
@@ -152,7 +177,7 @@ func main() {
 
 	elems := []string{"Int8", "Int16", "Int32", "Int64", "Uint8", "Uint16", "Uint32", "Uint64", "Float32", "Float64", "Mask8", "Mask16", "Mask32", "Mask64"}
 
-	fmt.Println("Intersection of methods for 256-bit and 512-bit vectors:")
+	fmt.Println("Intersection of methods for 128-bit, 256-bit, and 512-bit vectors:")
 
 	sigForMethod := make(map[string]*ast.FuncDecl)
 
@@ -189,22 +214,25 @@ func main() {
 	}
 
 	for _, elem := range elems {
+		type128 := map128[elem]
 		type256 := map256[elem]
 		type512 := map512[elem]
 
+		methods128 := methodsByType[type128]
 		methods256 := methodsByType[type256]
 		methods512 := methodsByType[type512]
 
 		var intersection []string
-		for m := range methods256 {
-			if fd := methods512[m]; fd != nil {
+		for m := range methods128 {
+			if methods256[m] != nil && methods512[m] != nil {
 				intersection = append(intersection, m)
-				sigForMethod[m] = fd
+				sigForMethod[m] = methods512[m] // Use 512-bit signature (arbitrary choice, they should match)
 			}
 		}
 		sort.Strings(intersection)
 
 		pf("\n// Element Type: %s\n", elem)
+		pf("//   128-bit Type: %s (Methods: %d)\n", type128, len(methods128))
 		pf("//   256-bit Type: %s (Methods: %d)\n", type256, len(methods256))
 		pf("//   512-bit Type: %s (Methods: %d)\n", type512, len(methods512))
 

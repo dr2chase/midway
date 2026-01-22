@@ -12,6 +12,8 @@ import (
 	"simd/archsimd"
 )
 
+var sumWidth int
+
 func main() {
 	var a, b [50]float32
 	for i := 0; i < 50; i++ {
@@ -24,16 +26,29 @@ func main() {
 	fmt.Println(ip(a[:30], b[:30]))
 	fmt.Println(ip(a[:40], b[:40]))
 	fmt.Println(ip(a[:50], b[:50]))
+
+	fmt.Println("sum was computed in width", sumWidth)
 }
 
 func sum(x simd.Float32s) float32 {
 
 	switch a := (any(x)).(type) {
 	case archsimd.Float32x8:
+		sumWidth = 256
 		a = a.AddPairs(a)
 		a = a.AddPairs(a)
 		return a.GetLo().GetElem(0) + a.GetHi().GetElem(0)
 	case archsimd.Float32x16:
+		sumWidth = 512
+		s := make([]float32, a.Len())
+		a.StoreSlice(s)
+		var r float32
+		for _, e := range s {
+			r += e
+		}
+		return r
+	case archsimd.Float32x4:
+		sumWidth = 128
 		s := make([]float32, a.Len())
 		a.StoreSlice(s)
 		var r float32
@@ -59,14 +74,4 @@ func ip(x, y []float32) float32 {
 	}
 
 	return sum(a)
-
-	// Would like to do this but methods are not
-	// defined for all the types we need, sigh.
-	// l := a.Len()
-	// for l > 1 {
-	// 	a = a.AddPairs(a)
-	// 	l /= 2
-	// }
-
-	// return a.GetElem(0)
 }
