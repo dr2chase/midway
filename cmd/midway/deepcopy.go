@@ -13,10 +13,10 @@ type DeepCopier struct {
 	// OnIdent, if provided, handles identifier cloning.
 	// If it returns nil, a default clone is performed.
 	OnIdent func(*ast.Ident) *ast.Ident
-    
-    // OnSelector, if provided, handles selector expression cloning.
-    // If it returns nil, a default clone is performed.
-    OnSelector func(*ast.SelectorExpr) ast.Expr
+
+	// OnSelector, if provided, handles selector expression cloning.
+	// If it returns nil, a default clone is performed.
+	OnSelector func(*ast.SelectorExpr) ast.Expr
 }
 
 func (c *DeepCopier) CopyDecl(d ast.Decl) ast.Decl {
@@ -96,11 +96,11 @@ func (c *DeepCopier) CopyExpr(e ast.Expr) ast.Expr {
 	case *ast.ArrayType:
 		return &ast.ArrayType{Lbrack: e.Lbrack, Len: c.CopyExpr(e.Len), Elt: c.CopyExpr(e.Elt)}
 	case *ast.SelectorExpr:
-        if c.OnSelector != nil {
-            if sub := c.OnSelector(e); sub != nil {
-                return sub
-            }
-        }
+		if c.OnSelector != nil {
+			if sub := c.OnSelector(e); sub != nil {
+				return sub
+			}
+		}
 		return &ast.SelectorExpr{X: c.CopyExpr(e.X), Sel: c.CopyIdent(e.Sel)}
 	case *ast.CallExpr:
 		newE := &ast.CallExpr{
@@ -155,8 +155,8 @@ func (c *DeepCopier) CopyExpr(e ast.Expr) ast.Expr {
 		return &ast.MapType{Map: e.Map, Key: c.CopyExpr(e.Key), Value: c.CopyExpr(e.Value)}
 	case *ast.ChanType:
 		return &ast.ChanType{Begin: e.Begin, Arrow: e.Arrow, Dir: e.Dir, Value: c.CopyExpr(e.Value)}
-    case *ast.FuncType:
-        return c.CopyFuncType(e)
+	case *ast.FuncType:
+		return c.CopyFuncType(e)
 	default:
 		// TODO: Handle other expressions (InterfaceType, StructType, etc if they appear in bodies/signatures we care about)
 		// For now, return as is (risky if modified in place later) or implement more.

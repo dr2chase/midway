@@ -395,10 +395,42 @@ func (r *Rewriter) generateForSize(k int) error {
 			continue
 		}
 
+		var importDecls []ast.Decl
+
+		// Add imports
+		archSimdName := fmt.Sprintf("\"%s/archsimd\"", *archsimdPfxFlag)
+
+		// Inject archsimd import
+		archSimdImport := &ast.GenDecl{
+			Tok: token.IMPORT,
+			Specs: []ast.Spec{
+				&ast.ImportSpec{
+					Name: ast.NewIdent("archsimd"),
+					Path: &ast.BasicLit{Kind: token.STRING, Value: archSimdName},
+				},
+			},
+		}
+		importDecls = append(importDecls, archSimdImport)
+
+	declLoop:
+		for _, decl := range fileAST.Decls {
+			if genDecl, ok := decl.(*ast.GenDecl); ok && genDecl.Tok == token.IMPORT {
+				for _, spec := range genDecl.Specs {
+					// don't copy archsimd if it was imported in the input file
+					if importSpec, ok := spec.(*ast.ImportSpec); ok {
+						if importSpec.Path.Value == archSimdName {
+							continue declLoop
+						}
+					}
+				}
+				importDecls = append(importDecls, copier.CopyDecl(genDecl))
+			}
+		}
+
 		newFileAST := &ast.File{
 			Name:    ast.NewIdent(r.pkg.Name),
 			Package: fileAST.Package, // Preserve Package Pos to avoid comment interleaving
-			Decls:   newDecls,
+			Decls:   append(importDecls, newDecls...),
 		}
 
 		// Replace "midway" with "!midway"
@@ -413,31 +445,12 @@ func (r *Rewriter) generateForSize(k int) error {
 					newC.Text = strings.ReplaceAll(c.Text, "midway", "!midway")
 					newcg.List = append(newcg.List, &newC)
 				} else {
-					newcg.List = append(newcg.List, c)	
-				}	
+					newcg.List = append(newcg.List, c)
+				}
 			}
 			newComments = append(newComments, newcg)
 		}
 		newFileAST.Comments = newComments
-
-		// Add imports
-		// Inject archsimd import
-		archSimdImport := &ast.GenDecl{
-			Tok: token.IMPORT,
-			Specs: []ast.Spec{
-				&ast.ImportSpec{
-					Name: ast.NewIdent("archsimd"),
-					Path: &ast.BasicLit{Kind: token.STRING, Value: fmt.Sprintf("\"%s/archsimd\"", *archsimdPfxFlag)},
-				},
-			},
-		}
-		newFileAST.Decls = append([]ast.Decl{archSimdImport}, newFileAST.Decls...)
-
-		for _, decl := range fileAST.Decls {
-			if genDecl, ok := decl.(*ast.GenDecl); ok && genDecl.Tok == token.IMPORT {
-				newFileAST.Decls = append([]ast.Decl{copier.CopyDecl(genDecl)}, newFileAST.Decls...)
-			}
-		}
 
 		baseName := strings.TrimSuffix(filepath.Base(filename), ".go")
 		outName := filepath.Join(filepath.Dir(filename), baseName+suffix+".go")

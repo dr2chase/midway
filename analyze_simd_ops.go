@@ -7,6 +7,7 @@ package main
 import (
 	"fmt"
 	"go/ast"
+	"go/format"
 	"go/parser"
 	"go/token"
 	"log"
@@ -21,9 +22,15 @@ type MethodSet map[string]*ast.FuncDecl
 type TypeMethods map[string]MethodSet
 
 func main() {
+	p := func(s ...any) { fmt.Print(s...) }
+	pf := func(f string, s ...any) { fmt.Printf(f, s...) }
+	pe := func(f string, s ...any) { fmt.Fprintf(os.Stderr, f, s...) }
+	nl := func() { fmt.Println() }
+
 	// Hardcoded path to archsimd
 	archSimdPath := "/Users/drchase/work/go/src/simd/archsimd"
 
+	// Hardcoded list of files
 	files := []string{"ops_amd64.go", "types_amd64.go", "other_gen_amd64.go", "extra_amd64.go", "maskmerge_gen_amd64.go", "shuffles_amd64.go", "slice_gen_amd64.go", "slicepart_amd64.go", "string.go"}
 
 	// Categories based on bit size
@@ -110,7 +117,6 @@ func main() {
 
 				eltType := recvType[:strings.Index(recvType, "x")]
 
-				// Exclude "grouped" methods
 				methodName := funcDecl.Name.Name
 
 				// Allow reinterpret vectors.
@@ -121,12 +127,17 @@ func main() {
 				} else if strings.HasPrefix(methodName, "Broadcast") {
 					// Broadcast is okay
 				} else {
+					// Exclude "grouped", "Store" (not slice), and vector-size-changing methods.
 					if strings.Contains(methodName, "Group") {
-						fmt.Fprintf(os.Stderr, "Skipping grouped method %s.%s\n", recvType, methodName)
+						pe("Skipping grouped method %s.%s\n", recvType, methodName)
+						continue
+					}
+					if methodName == "Store" || methodName == "StoreMasked" {
+						pe("Skipping fixed-size Store method method %s.%s\n", recvType, methodName)
 						continue
 					}
 					if lastChar := methodName[len(methodName)-1]; unicode.IsDigit(rune(lastChar)) && lastChar != eltType[len(eltType)-1] {
-						fmt.Fprintf(os.Stderr, "Skipping size-changing method %s.%s\n", recvType, methodName)
+						pe("Skipping size-changing method %s.%s\n", recvType, methodName)
 						continue
 					}
 				}
@@ -145,9 +156,36 @@ func main() {
 
 	sigForMethod := make(map[string]*ast.FuncDecl)
 
-	var xlateType func(*ast.Expr) string
-	xlateType = func(e *ast.Expr) string {
-
+	// xlateType translates a type by replacing instances of types with keys in knownReceivers with their values,
+	// and generates the string representation of the resulting type.  E.g., []Int8x32 -> []Int8s
+	// (because Int8x32 -> Int8s in knownReceivers
+	var xlateType func(ast.Expr) string
+	xlateType = func(e ast.Expr) string {
+		switch t := e.(type) {
+		case *ast.Ident:
+			if mapped, ok := knownReceivers[t.Name]; ok {
+				return mapped
+			}
+			return t.Name
+		case *ast.StarExpr:
+			return "*" + xlateType(t.X)
+		case *ast.ArrayType:
+			lenStr := ""
+			if t.Len != nil {
+				var buf strings.Builder
+				format.Node(&buf, token.NewFileSet(), t.Len)
+				lenStr = buf.String()
+			}
+			return "[" + lenStr + "]" + xlateType(t.Elt)
+		case *ast.SelectorExpr:
+			return xlateType(t.X) + "." + t.Sel.Name
+		case *ast.Ellipsis:
+			return "..." + xlateType(t.Elt)
+		default:
+			var buf strings.Builder
+			format.Node(&buf, token.NewFileSet(), t)
+			return buf.String()
+		}
 	}
 
 	for _, elem := range elems {
@@ -166,16 +204,60 @@ func main() {
 		}
 		sort.Strings(intersection)
 
-		fmt.Printf("\n// Element Type: %s\n", elem)
-		fmt.Printf("//   256-bit Type: %s (Methods: %d)\n", type256, len(methods256))
-		fmt.Printf("//   512-bit Type: %s (Methods: %d)\n", type512, len(methods512))
+		pf("\n// Element Type: %s\n", elem)
+		pf("//   256-bit Type: %s (Methods: %d)\n", type256, len(methods256))
+		pf("//   512-bit Type: %s (Methods: %d)\n", type512, len(methods512))
 
-		fmt.Printf("//   Intersection (%d): %v\n", len(intersection), intersection)
+		// pf("//   Intersection (%d): %v\n", len(intersection), intersection)
 		for _, m := range intersection {
 			fd := sigForMethod[m]
-			fmt.Printf("func (%s)%s(", elem+"s")
-			fmt.Printf(") %s", xlateType(fd.Type.TypeParams.List[0].Type))
+			pf("func (x %s) %s(", elem+"s", m)
 
+			if fd.Type.Params != nil {
+				for i, field := range fd.Type.Params.List {
+					if i > 0 {
+						p(", ")
+					}
+					if len(field.Names) > 0 {
+						for j, name := range field.Names {
+							if j > 0 {
+								p(", ")
+							}
+							p(name.Name)
+						}
+						p(" ")
+					}
+					p(xlateType(field.Type))
+				}
+			}
+			p(")")
+
+			if fd.Type.Results != nil && len(fd.Type.Results.List) > 0 {
+				p(" ")
+				needsParens := len(fd.Type.Results.List) > 1 || (len(fd.Type.Results.List) == 1 && len(fd.Type.Results.List[0].Names) > 0)
+				if needsParens {
+					p("(")
+				}
+				for i, field := range fd.Type.Results.List {
+					if i > 0 {
+						p(", ")
+					}
+					if len(field.Names) > 0 {
+						for j, name := range field.Names {
+							if j > 0 {
+								p(", ")
+							}
+							p(name.Name)
+						}
+						p(" ")
+					}
+					p(xlateType(field.Type))
+				}
+				if needsParens {
+					p(")")
+				}
+			}
+			nl()
 		}
 	}
 }
