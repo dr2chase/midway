@@ -370,7 +370,7 @@ func (r *Rewriter) generateForSize(k int) error {
 		return nil
 	}
 
-	copier := &DeepCopier{OnIdent: onIdent, OnSelector: onSelector}
+	copier := &DeepCopier{OnIdent: onIdent, OnSelector: onSelector, VecLen: k}
 
 	for _, fileAST := range r.pkg.Syntax {
 		tokenFile := r.pkg.Fset.File(fileAST.Pos())
@@ -400,13 +400,16 @@ func (r *Rewriter) generateForSize(k int) error {
 		// Add imports
 		archSimdName := fmt.Sprintf("\"%s/archsimd\"", *archsimdPfxFlag)
 
-		// Inject archsimd import
+		// Inject archsimd import and midway import (for assert<Size>)
 		archSimdImport := &ast.GenDecl{
 			Tok: token.IMPORT,
 			Specs: []ast.Spec{
 				&ast.ImportSpec{
 					Name: ast.NewIdent("archsimd"),
 					Path: &ast.BasicLit{Kind: token.STRING, Value: archSimdName},
+				},
+				&ast.ImportSpec{
+					Path: &ast.BasicLit{Kind: token.STRING, Value: "\"" + *midwayPackage + "\""},
 				},
 			},
 		}

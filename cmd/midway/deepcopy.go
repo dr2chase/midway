@@ -5,11 +5,14 @@
 package main
 
 import (
+	"fmt"
 	"go/ast"
 )
 
 // DeepCopier clones AST nodes.
 type DeepCopier struct {
+	VecLen int
+
 	// OnIdent, if provided, handles identifier cloning.
 	// If it returns nil, a default clone is performed.
 	OnIdent func(*ast.Ident) *ast.Ident
@@ -247,6 +250,18 @@ func (c *DeepCopier) CopyBlockStmt(b *ast.BlockStmt) *ast.BlockStmt {
 		return nil
 	}
 	newB := &ast.BlockStmt{Lbrace: b.Lbrace, Rbrace: b.Rbrace}
+
+		assertName := fmt.Sprintf("Assert%d", c.VecLen)
+		assertCall := &ast.ExprStmt{
+			X: &ast.CallExpr{
+				Fun: &ast.SelectorExpr{
+					X:   &ast.Ident{Name: "midway"},
+					Sel: &ast.Ident{Name: assertName},
+				},
+			},
+		}
+		newB.List = append(newB.List, assertCall)
+
 	for _, s := range b.List {
 		newB.List = append(newB.List, c.CopyStmt(s))
 	}
