@@ -254,12 +254,12 @@ func VectorSize() int`)
 		}
 		sort.Strings(intersection)
 
-		pf("\n// Element Type: %s\n", elem)
-		pf("//   128-bit Type: %s (Methods: %d)\n", type128, len(methods128))
-		pf("//   256-bit Type: %s (Methods: %d)\n", type256, len(methods256))
-		pf("//   512-bit Type: %s (Methods: %d)\n", type512, len(methods512))
+		pf("\n// Element Type: %s\n//\n", elem)
+		pf("//\t128-bit Type: %s (Methods: %d)\n", type128, len(methods128))
+		pf("//\t256-bit Type: %s (Methods: %d)\n", type256, len(methods256))
+		pf("//\t512-bit Type: %s (Methods: %d)\n", type512, len(methods512))
 
-		pf("type %ss []%s\n", elem, toScalar(elem))
+		pf("type %ss []%s\n\n", elem, toScalar(elem))
 		pf("func Load%sSlice([]%s) %ss\n", elem, toScalar(elem), elem)
 		pf("func Load%sSlicePart([]%s) %ss\n", elem, toScalar(elem), elem)
 

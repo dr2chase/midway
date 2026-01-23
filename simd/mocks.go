@@ -6,10 +6,12 @@ package simd
 func VectorSize() int
 
 // Element Type: Int8
-//   128-bit Type: Int8x16 (Methods: 47)
-//   256-bit Type: Int8x32 (Methods: 43)
-//   512-bit Type: Int8x64 (Methods: 44)
+//
+//	128-bit Type: Int8x16 (Methods: 47)
+//	256-bit Type: Int8x32 (Methods: 43)
+//	512-bit Type: Int8x64 (Methods: 44)
 type Int8s []int8
+
 func LoadInt8Slice([]int8) Int8s
 func LoadInt8SlicePart([]int8) Int8s
 func (x Int8s) Abs() Int8s
@@ -50,10 +52,12 @@ func (x Int8s) Xor(y Int8s) Int8s
 func (x Int8s) asMask() (to Mask8s)
 
 // Element Type: Int16
-//   128-bit Type: Int16x8 (Methods: 62)
-//   256-bit Type: Int16x16 (Methods: 58)
-//   512-bit Type: Int16x32 (Methods: 55)
+//
+//	128-bit Type: Int16x8 (Methods: 62)
+//	256-bit Type: Int16x16 (Methods: 58)
+//	512-bit Type: Int16x32 (Methods: 55)
 type Int16s []int16
+
 func LoadInt16Slice([]int16) Int16s
 func LoadInt16SlicePart([]int16) Int16s
 func (x Int16s) Abs() Int16s
@@ -105,10 +109,12 @@ func (x Int16s) Xor(y Int16s) Int16s
 func (x Int16s) asMask() (to Mask16s)
 
 // Element Type: Int32
-//   128-bit Type: Int32x4 (Methods: 65)
-//   256-bit Type: Int32x8 (Methods: 59)
-//   512-bit Type: Int32x16 (Methods: 57)
+//
+//	128-bit Type: Int32x4 (Methods: 65)
+//	256-bit Type: Int32x8 (Methods: 59)
+//	512-bit Type: Int32x16 (Methods: 57)
 type Int32s []int32
+
 func LoadInt32Slice([]int32) Int32s
 func LoadInt32SlicePart([]int32) Int32s
 func (x Int32s) Abs() Int32s
@@ -161,10 +167,12 @@ func (x Int32s) Xor(y Int32s) Int32s
 func (x Int32s) asMask() (to Mask32s)
 
 // Element Type: Int64
-//   128-bit Type: Int64x2 (Methods: 57)
-//   256-bit Type: Int64x4 (Methods: 55)
-//   512-bit Type: Int64x8 (Methods: 57)
+//
+//	128-bit Type: Int64x2 (Methods: 57)
+//	256-bit Type: Int64x4 (Methods: 55)
+//	512-bit Type: Int64x8 (Methods: 57)
 type Int64s []int64
+
 func LoadInt64Slice([]int64) Int64s
 func LoadInt64SlicePart([]int64) Int64s
 func (x Int64s) Abs() Int64s
@@ -217,10 +225,12 @@ func (x Int64s) Xor(y Int64s) Int64s
 func (x Int64s) asMask() (to Mask64s)
 
 // Element Type: Uint8
-//   128-bit Type: Uint8x16 (Methods: 53)
-//   256-bit Type: Uint8x32 (Methods: 48)
-//   512-bit Type: Uint8x64 (Methods: 51)
+//
+//	128-bit Type: Uint8x16 (Methods: 53)
+//	256-bit Type: Uint8x32 (Methods: 48)
+//	512-bit Type: Uint8x64 (Methods: 51)
 type Uint8s []uint8
+
 func LoadUint8Slice([]uint8) Uint8s
 func LoadUint8SlicePart([]uint8) Uint8s
 func (x Uint8s) AESDecryptLastRound(y Uint32s) Uint8s
@@ -267,10 +277,12 @@ func (x Uint8s) SumAbsDiff(y Uint8s) Uint16s
 func (x Uint8s) Xor(y Uint8s) Uint8s
 
 // Element Type: Uint16
-//   128-bit Type: Uint16x8 (Methods: 55)
-//   256-bit Type: Uint16x16 (Methods: 51)
-//   512-bit Type: Uint16x32 (Methods: 52)
+//
+//	128-bit Type: Uint16x8 (Methods: 55)
+//	256-bit Type: Uint16x16 (Methods: 51)
+//	512-bit Type: Uint16x32 (Methods: 52)
 type Uint16s []uint16
+
 func LoadUint16Slice([]uint16) Uint16s
 func LoadUint16SlicePart([]uint16) Uint16s
 func (x Uint16s) Add(y Uint16s) Uint16s
@@ -318,10 +330,12 @@ func (x Uint16s) SubSaturated(y Uint16s) Uint16s
 func (x Uint16s) Xor(y Uint16s) Uint16s
 
 // Element Type: Uint32
-//   128-bit Type: Uint32x4 (Methods: 65)
-//   256-bit Type: Uint32x8 (Methods: 54)
-//   512-bit Type: Uint32x16 (Methods: 54)
+//
+//	128-bit Type: Uint32x4 (Methods: 65)
+//	256-bit Type: Uint32x8 (Methods: 54)
+//	512-bit Type: Uint32x16 (Methods: 54)
 type Uint32s []uint32
+
 func LoadUint32Slice([]uint32) Uint32s
 func LoadUint32SlicePart([]uint32) Uint32s
 func (x Uint32s) Add(y Uint32s) Uint32s
@@ -370,10 +384,12 @@ func (x Uint32s) Sub(y Uint32s) Uint32s
 func (x Uint32s) Xor(y Uint32s) Uint32s
 
 // Element Type: Uint64
-//   128-bit Type: Uint64x2 (Methods: 54)
-//   256-bit Type: Uint64x4 (Methods: 51)
-//   512-bit Type: Uint64x8 (Methods: 54)
+//
+//	128-bit Type: Uint64x2 (Methods: 54)
+//	256-bit Type: Uint64x4 (Methods: 51)
+//	512-bit Type: Uint64x8 (Methods: 54)
 type Uint64s []uint64
+
 func LoadUint64Slice([]uint64) Uint64s
 func LoadUint64SlicePart([]uint64) Uint64s
 func (x Uint64s) Add(y Uint64s) Uint64s
@@ -422,10 +438,12 @@ func (x Uint64s) Sub(y Uint64s) Uint64s
 func (x Uint64s) Xor(y Uint64s) Uint64s
 
 // Element Type: Float32
-//   128-bit Type: Float32x4 (Methods: 61)
-//   256-bit Type: Float32x8 (Methods: 61)
-//   512-bit Type: Float32x16 (Methods: 53)
+//
+//	128-bit Type: Float32x4 (Methods: 61)
+//	256-bit Type: Float32x8 (Methods: 61)
+//	512-bit Type: Float32x16 (Methods: 53)
 type Float32s []float32
+
 func LoadFloat32Slice([]float32) Float32s
 func LoadFloat32SlicePart([]float32) Float32s
 func (x Float32s) Add(y Float32s) Float32s
@@ -478,10 +496,12 @@ func (x Float32s) TruncScaled(prec uint8) Float32s
 func (x Float32s) TruncScaledResidue(prec uint8) Float32s
 
 // Element Type: Float64
-//   128-bit Type: Float64x2 (Methods: 61)
-//   256-bit Type: Float64x4 (Methods: 61)
-//   512-bit Type: Float64x8 (Methods: 53)
+//
+//	128-bit Type: Float64x2 (Methods: 61)
+//	256-bit Type: Float64x4 (Methods: 61)
+//	512-bit Type: Float64x8 (Methods: 53)
 type Float64s []float64
+
 func LoadFloat64Slice([]float64) Float64s
 func LoadFloat64SlicePart([]float64) Float64s
 func (x Float64s) Add(y Float64s) Float64s
@@ -534,10 +554,12 @@ func (x Float64s) TruncScaled(prec uint8) Float64s
 func (x Float64s) TruncScaledResidue(prec uint8) Float64s
 
 // Element Type: Mask8
-//   128-bit Type: Mask8x16 (Methods: 3)
-//   256-bit Type: Mask8x32 (Methods: 3)
-//   512-bit Type: Mask8x64 (Methods: 3)
+//
+//	128-bit Type: Mask8x16 (Methods: 3)
+//	256-bit Type: Mask8x32 (Methods: 3)
+//	512-bit Type: Mask8x64 (Methods: 3)
 type Mask8s []int8
+
 func LoadMask8Slice([]int8) Mask8s
 func LoadMask8SlicePart([]int8) Mask8s
 func (x Mask8s) And(y Mask8s) Mask8s
@@ -545,10 +567,12 @@ func (x Mask8s) Or(y Mask8s) Mask8s
 func (x Mask8s) ToInt8s() (to Int8s)
 
 // Element Type: Mask16
-//   128-bit Type: Mask16x8 (Methods: 3)
-//   256-bit Type: Mask16x16 (Methods: 3)
-//   512-bit Type: Mask16x32 (Methods: 3)
+//
+//	128-bit Type: Mask16x8 (Methods: 3)
+//	256-bit Type: Mask16x16 (Methods: 3)
+//	512-bit Type: Mask16x32 (Methods: 3)
 type Mask16s []int16
+
 func LoadMask16Slice([]int16) Mask16s
 func LoadMask16SlicePart([]int16) Mask16s
 func (x Mask16s) And(y Mask16s) Mask16s
@@ -556,10 +580,12 @@ func (x Mask16s) Or(y Mask16s) Mask16s
 func (x Mask16s) ToInt16s() (to Int16s)
 
 // Element Type: Mask32
-//   128-bit Type: Mask32x4 (Methods: 3)
-//   256-bit Type: Mask32x8 (Methods: 3)
-//   512-bit Type: Mask32x16 (Methods: 3)
+//
+//	128-bit Type: Mask32x4 (Methods: 3)
+//	256-bit Type: Mask32x8 (Methods: 3)
+//	512-bit Type: Mask32x16 (Methods: 3)
 type Mask32s []int32
+
 func LoadMask32Slice([]int32) Mask32s
 func LoadMask32SlicePart([]int32) Mask32s
 func (x Mask32s) And(y Mask32s) Mask32s
@@ -567,10 +593,12 @@ func (x Mask32s) Or(y Mask32s) Mask32s
 func (x Mask32s) ToInt32s() (to Int32s)
 
 // Element Type: Mask64
-//   128-bit Type: Mask64x2 (Methods: 3)
-//   256-bit Type: Mask64x4 (Methods: 3)
-//   512-bit Type: Mask64x8 (Methods: 3)
+//
+//	128-bit Type: Mask64x2 (Methods: 3)
+//	256-bit Type: Mask64x4 (Methods: 3)
+//	512-bit Type: Mask64x8 (Methods: 3)
 type Mask64s []int64
+
 func LoadMask64Slice([]int64) Mask64s
 func LoadMask64SlicePart([]int64) Mask64s
 func (x Mask64s) And(y Mask64s) Mask64s

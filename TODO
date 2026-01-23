@@ -1,0 +1,19 @@
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+Multiple architectures is an issue, and likely there
+should be architecture-specific build tags.
+
+There are some glitches in comment-formatting, see
+for example testdata/simple/golden/test0_simd.go:
+```
+func ComputeSum(n int) int {
+        switch
+        // Uses SIMD internally <-- comment mid-statement
+        midway.MaxVectorSize() {
+```
+
+Package name collisions could be a thing, currently
+seems like a lot of work to fix a "don't do that"
+problem in a demo/prototype.
