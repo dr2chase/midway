@@ -8,12 +8,12 @@ package testdata
 
 import (
 	"fmt"
-	archsimd "simd/archsimd"
+	"simd/archsimd"
 
 	"github.com/dr2chase/midway/midway"
-	// A SIMD-dependent type alias
 )
 
+// A SIMD-dependent type alias
 type MyInt8s_simd128 = archsimd.
 
 	// A struct dependent on SIMD

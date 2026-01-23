@@ -8,13 +8,14 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"os"
 	"strings"
 
 	"golang.org/x/tools/go/packages"
 )
 
 var (
-	sizesFlag       = flag.String("sizes", "128", "comma-separated list of vector sizes (e.g., 128,256)")
+	sizesFlag       = flag.String("sizes", "128,256,512", "comma-separated list of vector sizes (e.g., 128,256)")
 	dirFlag         = flag.String("dir", ".", "directory to process")
 	archsimdPfxFlag = flag.String("prefix", "simd", "prefix for the archsimd package")
 	midwayPackage   = flag.String("midway", "github.com/dr2chase/midway/midway", "package name for midway helpers")
@@ -48,6 +49,7 @@ func run(dir string, sizes []int) error {
 	cfg := &packages.Config{
 		Mode:       packages.NeedName | packages.NeedFiles | packages.NeedSyntax | packages.NeedTypes | packages.NeedTypesInfo | packages.NeedDeps | packages.NeedImports,
 		Dir:        dir,
+		Env:        append(os.Environ(), "GOOS=linux", "GOARCH=amd64", "GOEXPERIMENT=simd"),
 		BuildFlags: []string{"-tags=midway"},
 	}
 	pkgs, err := packages.Load(cfg, ".")

@@ -405,7 +405,6 @@ func (r *Rewriter) generateForSize(k int) error {
 			Tok: token.IMPORT,
 			Specs: []ast.Spec{
 				&ast.ImportSpec{
-					Name: ast.NewIdent("archsimd"),
 					Path: &ast.BasicLit{Kind: token.STRING, Value: archSimdName},
 				},
 				&ast.ImportSpec{
