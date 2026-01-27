@@ -103,23 +103,32 @@ func TestMidwaySimpleGeneration(t *testing.T) {
 	}
 }
 
-// TestMidwayIpCompilation verifies that running cmd/midway in testdata/ip generates files that will compile with specific flags
 func TestMidwayIpCompilation(t *testing.T) {
-	tmpDir := t.TempDir()
-	ipDir := filepath.Join("testdata", "ip")
+	testMidwayCompilation(t, "ip")
+}
 
-	// Copy ip dir contents to tmpDir
-	if err := copyDir(ipDir, tmpDir); err != nil {
-		t.Fatalf("failed to copy %s to %s: %v", ipDir, tmpDir, err)
+func TestMidwaySplitPkgCompilation(t *testing.T) {
+	testMidwayCompilation(t, "splitpkg")
+}
+
+// testMidwayCompilation verifies that running cmd/midway in testdata/subdir
+// generates files that will compile (with GOARCH=amd64 and GOEXPERIMENT=simd)
+func testMidwayCompilation(t *testing.T, subdir string) {
+	tmpDir := t.TempDir()
+	dir := filepath.Join("testdata", subdir)
+
+	// Copy subdir dir contents to tmpDir
+	if err := copyDir(dir, tmpDir); err != nil {
+		t.Fatalf("failed to copy %s to %s: %v", dir, tmpDir, err)
 	}
 
 	// Initialize module for packages.Load to work
-	initModule(t, tmpDir, "ip")
+	initModule(t, tmpDir, subdir)
 
 	// Run cmd/midway
 	cmd := exec.Command("go", "run", "./cmd/midway", "-dir", tmpDir)
 	if testing.Verbose() {
-		t.Logf("go run ./cmd/midway -dir testdata/ip # real command in a tmpdir")
+		t.Logf("go run ./cmd/midway -dir testdata/%s # real command in a tmpdir", subdir)
 	}
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("failed to run cmd/midway: %v\nOutput:\n%s", err, output)
@@ -130,7 +139,7 @@ func TestMidwayIpCompilation(t *testing.T) {
 	buildCmd.Dir = tmpDir
 	buildCmd.Env = append(os.Environ(), "GOARCH=amd64", "GOEXPERIMENT=simd", "CGO_ENABLED=0")
 	if testing.Verbose() {
-		t.Logf("( cd testdata/ip; GOARCH=amd64 GOEXPERIMENT=simd go build . ) # real command in a tmpdir")
+		t.Logf("( cd testdata/%s; GOARCH=amd64 GOEXPERIMENT=simd go build . ) # real command in a tmpdir", subdir)
 	}
 	if output, err := buildCmd.CombinedOutput(); err != nil {
 		t.Fatalf("failed to compile generated code in %s: %v\nOutput:\n%s", tmpDir, err, output)
