@@ -77,7 +77,7 @@ func TestMidwaySimpleGeneration(t *testing.T) {
 		goldenDir = filepath.Join("testdata", "simple", "golden")
 	}
 
-	filesToCheck := []string{"test0_simd.go", "test0_simd128.go", "test0_simd256.go", "test0_simd512.go"}
+	filesToCheck := []string{"test0_simd_amd64.go", "test0_simd128_amd64.go", "test0_simd256_amd64.go", "test0_simd512_amd64.go", "test0_simd_wasm.go", "test0_simd128_wasm.go"}
 
 	for _, fname := range filesToCheck {
 		generatedPath := filepath.Join(tmpDir, fname)
@@ -104,16 +104,16 @@ func TestMidwaySimpleGeneration(t *testing.T) {
 }
 
 func TestMidwayIpCompilation(t *testing.T) {
-	testMidwayCompilation(t, "ip")
+	testMidwayCompilation(t, "ip", "")
 }
 
 func TestMidwaySplitPkgCompilation(t *testing.T) {
-	testMidwayCompilation(t, "splitpkg")
+	testMidwayCompilation(t, "splitpkg", "-sizes=amd64:128,256,512")
 }
 
 // testMidwayCompilation verifies that running cmd/midway in testdata/subdir
 // generates files that will compile (with GOARCH=amd64 and GOEXPERIMENT=simd)
-func testMidwayCompilation(t *testing.T, subdir string) {
+func testMidwayCompilation(t *testing.T, subdir, extraFlag string) {
 	tmpDir := t.TempDir()
 	dir := filepath.Join("testdata", subdir)
 
@@ -125,8 +125,14 @@ func testMidwayCompilation(t *testing.T, subdir string) {
 	// Initialize module for packages.Load to work
 	initModule(t, tmpDir, subdir)
 
+	flags := []string{"run", "./cmd/midway", "-dir", tmpDir}
+
+	if extraFlag != "" {
+		flags = append(flags, extraFlag)
+	}
+
 	// Run cmd/midway
-	cmd := exec.Command("go", "run", "./cmd/midway", "-dir", tmpDir)
+	cmd := exec.Command("go", flags...)
 	if testing.Verbose() {
 		t.Logf("go run ./cmd/midway -dir testdata/%s # real command in a tmpdir", subdir)
 	}

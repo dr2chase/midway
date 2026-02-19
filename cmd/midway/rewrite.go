@@ -23,13 +23,15 @@ import (
 type Rewriter struct {
 	pkg      *packages.Package
 	analyzer *Analyzer
+	arch     string
 	sizes    []int
 }
 
-func NewRewriter(pkg *packages.Package, analyzer *Analyzer, sizes []int) *Rewriter {
+func NewRewriter(pkg *packages.Package, analyzer *Analyzer, arch string, sizes []int) *Rewriter {
 	return &Rewriter{
 		pkg:      pkg,
 		analyzer: analyzer,
+		arch:     arch,
 		sizes:    sizes,
 	}
 }
@@ -136,7 +138,7 @@ func (r *Rewriter) generateDispatchers() error {
 
 			// Filter out existing build tags to prevent duplicates/conflicts
 			var newComments []*ast.CommentGroup
-			var newBuild = "//go:build !midway"
+			var newBuild = "//go:build !midway && " + r.arch
 			for _, cg := range fileAST.Comments {
 				keep := true
 				for _, c := range cg.List {
@@ -192,7 +194,7 @@ func (r *Rewriter) generateDispatchers() error {
 			}
 
 			baseName := strings.TrimSuffix(filepath.Base(filename), ".go")
-			outName := filepath.Join(filepath.Dir(filename), baseName+"_simd.go")
+			outName := filepath.Join(filepath.Dir(filename), baseName+"_simd_"+r.arch+".go")
 
 			res, err := imports.Process(outName, []byte(buf.String()), nil)
 			if err != nil {
@@ -307,6 +309,7 @@ func (r *Rewriter) createDispatcherBody(funcName string, funcType *ast.FuncType)
 
 func (r *Rewriter) generateForSize(k int) error {
 	suffix := fmt.Sprintf("_simd%d", k)
+	fileSuffix := fmt.Sprintf("_simd%d_%s", k, r.arch)
 
 	// We handle identifiers by checking if they resolve to Dependent objects
 	onIdent := func(id *ast.Ident) *ast.Ident {
@@ -455,7 +458,7 @@ func (r *Rewriter) generateForSize(k int) error {
 		newFileAST.Comments = newComments
 
 		baseName := strings.TrimSuffix(filepath.Base(filename), ".go")
-		outName := filepath.Join(filepath.Dir(filename), baseName+suffix+".go")
+		outName := filepath.Join(filepath.Dir(filename), baseName+fileSuffix+".go")
 
 		var buf strings.Builder
 

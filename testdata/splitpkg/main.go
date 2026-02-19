@@ -35,8 +35,8 @@ func sum(x simd.Float32s) float32 {
 	switch a := (any(x)).(type) {
 	case archsimd.Float32x8:
 		sumWidth = 256
-		a = a.AddPairs(a)
-		a = a.AddPairs(a)
+		a = a.AddPairsGrouped(a)
+		a = a.AddPairsGrouped(a)
 		return a.GetLo().GetElem(0) + a.GetHi().GetElem(0)
 	case archsimd.Float32x16:
 		sumWidth = 512

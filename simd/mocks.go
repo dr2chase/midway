@@ -7,7 +7,7 @@ func VectorSize() int
 
 // Element Type: Int8
 //
-//	128-bit Type: Int8x16 (Methods: 47)
+//	128-bit Type: Int8x16 (Methods: 44)
 //	256-bit Type: Int8x32 (Methods: 43)
 //	512-bit Type: Int8x64 (Methods: 44)
 type Int8s []int8
@@ -54,7 +54,7 @@ func (x Int8s) asMask() (to Mask8s)
 // Element Type: Int16
 //
 //	128-bit Type: Int16x8 (Methods: 62)
-//	256-bit Type: Int16x16 (Methods: 58)
+//	256-bit Type: Int16x16 (Methods: 54)
 //	512-bit Type: Int16x32 (Methods: 55)
 type Int16s []int16
 
@@ -110,8 +110,8 @@ func (x Int16s) asMask() (to Mask16s)
 
 // Element Type: Int32
 //
-//	128-bit Type: Int32x4 (Methods: 65)
-//	256-bit Type: Int32x8 (Methods: 59)
+//	128-bit Type: Int32x4 (Methods: 64)
+//	256-bit Type: Int32x8 (Methods: 57)
 //	512-bit Type: Int32x16 (Methods: 57)
 type Int32s []int32
 
@@ -226,7 +226,7 @@ func (x Int64s) asMask() (to Mask64s)
 
 // Element Type: Uint8
 //
-//	128-bit Type: Uint8x16 (Methods: 53)
+//	128-bit Type: Uint8x16 (Methods: 50)
 //	256-bit Type: Uint8x32 (Methods: 48)
 //	512-bit Type: Uint8x64 (Methods: 51)
 type Uint8s []uint8
@@ -279,7 +279,7 @@ func (x Uint8s) Xor(y Uint8s) Uint8s
 // Element Type: Uint16
 //
 //	128-bit Type: Uint16x8 (Methods: 55)
-//	256-bit Type: Uint16x16 (Methods: 51)
+//	256-bit Type: Uint16x16 (Methods: 49)
 //	512-bit Type: Uint16x32 (Methods: 52)
 type Uint16s []uint16
 
@@ -331,8 +331,8 @@ func (x Uint16s) Xor(y Uint16s) Uint16s
 
 // Element Type: Uint32
 //
-//	128-bit Type: Uint32x4 (Methods: 65)
-//	256-bit Type: Uint32x8 (Methods: 54)
+//	128-bit Type: Uint32x4 (Methods: 64)
+//	256-bit Type: Uint32x8 (Methods: 52)
 //	512-bit Type: Uint32x16 (Methods: 54)
 type Uint32s []uint32
 
@@ -440,7 +440,7 @@ func (x Uint64s) Xor(y Uint64s) Uint64s
 // Element Type: Float32
 //
 //	128-bit Type: Float32x4 (Methods: 61)
-//	256-bit Type: Float32x8 (Methods: 61)
+//	256-bit Type: Float32x8 (Methods: 59)
 //	512-bit Type: Float32x16 (Methods: 53)
 type Float32s []float32
 
@@ -469,7 +469,7 @@ func (x Float32s) FloorScaled(prec uint8) Float32s
 func (x Float32s) FloorScaledResidue(prec uint8) Float32s
 func (x Float32s) Greater(y Float32s) Mask32s
 func (x Float32s) GreaterEqual(y Float32s) Mask32s
-func (x Float32s) IsNan(y Float32s) Mask32s
+func (x Float32s) IsNaN() Mask32s
 func (x Float32s) Len() int
 func (x Float32s) Less(y Float32s) Mask32s
 func (x Float32s) LessEqual(y Float32s) Mask32s
@@ -498,7 +498,7 @@ func (x Float32s) TruncScaledResidue(prec uint8) Float32s
 // Element Type: Float64
 //
 //	128-bit Type: Float64x2 (Methods: 61)
-//	256-bit Type: Float64x4 (Methods: 61)
+//	256-bit Type: Float64x4 (Methods: 59)
 //	512-bit Type: Float64x8 (Methods: 53)
 type Float64s []float64
 
@@ -527,7 +527,7 @@ func (x Float64s) FloorScaled(prec uint8) Float64s
 func (x Float64s) FloorScaledResidue(prec uint8) Float64s
 func (x Float64s) Greater(y Float64s) Mask64s
 func (x Float64s) GreaterEqual(y Float64s) Mask64s
-func (x Float64s) IsNan(y Float64s) Mask64s
+func (x Float64s) IsNaN() Mask64s
 func (x Float64s) Len() int
 func (x Float64s) Less(y Float64s) Mask64s
 func (x Float64s) LessEqual(y Float64s) Mask64s
