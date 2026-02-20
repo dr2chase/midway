@@ -15,7 +15,7 @@ import (
 )
 
 var (
-	sizesFlag       = flag.String("sizes", "amd64:128,256,512;wasm:128", "semicolon-separated list of arch:size1,size2,etc")
+	sizesFlag       = flag.String("sizes", "amd64/linux:128,256,512;wasm/wasip1:128", "semicolon-separated list of arch:size1,size2,etc")
 	dirFlag         = flag.String("dir", ".", "directory to process")
 	archsimdPfxFlag = flag.String("prefix", "simd", "prefix for the archsimd package")
 	midwayPackage   = flag.String("midway", "github.com/dr2chase/midway/midway", "package name for midway helpers")
