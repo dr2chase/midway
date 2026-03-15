@@ -83,7 +83,7 @@ func (c *DeepCopier) CopyFuncDecl(d *ast.FuncDecl) *ast.FuncDecl {
 		Recv: c.CopyFieldList(d.Recv),
 		Name: c.CopyIdent(d.Name),
 		Type: c.CopyFuncType(d.Type),
-		Body: c.CopyBlockStmt(d.Body),
+		Body: c.CopyBlockStmtAndAssert(d.Body, true),
 	}
 }
 
@@ -245,12 +245,13 @@ func (c *DeepCopier) CopyStmt(s ast.Stmt) ast.Stmt {
 	}
 }
 
-func (c *DeepCopier) CopyBlockStmt(b *ast.BlockStmt) *ast.BlockStmt {
+func (c *DeepCopier) CopyBlockStmtAndAssert(b *ast.BlockStmt, doAssert bool) *ast.BlockStmt {
 	if b == nil {
 		return nil
 	}
 	newB := &ast.BlockStmt{Lbrace: b.Lbrace, Rbrace: b.Rbrace}
 
+	if doAssert {
 		assertName := fmt.Sprintf("Assert%d", c.VecLen)
 		assertCall := &ast.ExprStmt{
 			X: &ast.CallExpr{
@@ -261,11 +262,15 @@ func (c *DeepCopier) CopyBlockStmt(b *ast.BlockStmt) *ast.BlockStmt {
 			},
 		}
 		newB.List = append(newB.List, assertCall)
-
+	}
 	for _, s := range b.List {
 		newB.List = append(newB.List, c.CopyStmt(s))
 	}
 	return newB
+}
+
+func (c *DeepCopier) CopyBlockStmt(b *ast.BlockStmt) *ast.BlockStmt {
+	return c.CopyBlockStmtAndAssert(b, false)
 }
 
 func (c *DeepCopier) CopyFieldList(f *ast.FieldList) *ast.FieldList {

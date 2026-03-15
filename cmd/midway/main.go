@@ -15,7 +15,8 @@ import (
 )
 
 var (
-	sizesFlag       = flag.String("sizes", "amd64/linux:128,256,512;wasm/wasip1:128", "semicolon-separated list of arch:size1,size2,etc")
+	archesFlag      = flag.String("arch", "amd64", "comma-separated list of architectures to generate for")
+	sizesFlag       = flag.String("a2s", "amd64:128,256,512;wasm:128", "semicolon-separated list of sizes for each architecture: archA:size1,size2;archB:size1 etc")
 	dirFlag         = flag.String("dir", ".", "directory to process")
 	archsimdPfxFlag = flag.String("prefix", "simd", "prefix for the archsimd package")
 	midwayPackage   = flag.String("midway", "github.com/dr2chase/midway/midway", "package name for midway helpers")
@@ -40,6 +41,8 @@ func setFrom(ss []string) map[string]bool {
 func main() {
 	flag.Parse()
 
+	arch2Sizes := make(map[string]ArchSizes)
+
 	var allRewrites []ArchSizes
 
 	bySemis := strings.Split(*sizesFlag, ";")
@@ -51,10 +54,7 @@ func main() {
 		}
 		os := "linux"
 		arch := as[0]
-		if slash := strings.Index(arch, "/"); slash != -1 {
-			os = arch[slash+1:]
-			arch = arch[:slash]
-		} else if arch == "wasm" {
+		if arch == "wasm" {
 			os = "wasip1"
 		}
 		if !knownArches[arch] {
@@ -73,13 +73,20 @@ func main() {
 		if len(sizes) == 0 {
 			log.Fatalf("no vector sizes specified in %s", archSizes)
 		}
-		allRewrites = append(allRewrites, ArchSizes{arch: arch, os: os, sizes: sizes})
+		arch2Sizes[arch] = ArchSizes{arch: arch, os: os, sizes: sizes}
+	}
+
+	arches := strings.Split(*archesFlag, ",")
+	for _, arch := range arches {
+		if as, ok := arch2Sizes[arch]; ok {
+			allRewrites = append(allRewrites, as)
+		} else {
+			log.Fatalf("requested architecture %s not found in sizes %s", arch, *sizesFlag)
+		}
 	}
 
 	for _, rw := range allRewrites {
-
 		fmt.Printf("Rewriting for arch %s and sizes: %v in directory: %s\n", rw.arch, rw.sizes, *dirFlag)
-
 		if err := run(*dirFlag, rw); err != nil {
 			log.Fatalf("Error: %v", err)
 		}

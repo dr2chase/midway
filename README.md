@@ -35,8 +35,9 @@ go mod tidy # fill in entry for github.com/dr2chase/midway/midway
 
 ### Flags
 
+-   `arch`: Comma-separated lists of architectures to rewrite for.  Default is `"amd64"`.
 -   `-dir string`: Directory to process (default: current directory `"."`).
--   `-sizes string`: Comma-separated list of vector sizes to generate, per architecture(e.g., `"amd64:128,256,512;wasm:128"`). Default is `"amd64:128,256,512;wasm:128"`.
+-   `-a2s string`: Comma-separated list mapping architectures to lists of vector sizes (e.g., `"amd64:128,256,512;wasm:128"`). Default is `"amd64:128,256,512;wasm:128"`.
 -   `-prefix string`: Prefix for the `archsimd` package path (default: `"simd"`).
 -   `-midway string`: Package path for midway helpers (default: `"github.com/dr2chase/midway/midway"`).
 
@@ -57,7 +58,7 @@ func Add(a, b simd.Int32s) simd.Int32s {
 
 Command:
 ```bash
-midway -dir . -sizes amd64:128,256
+midway -dir . -arch amd64 -sizes amd64:128,256
 ```
 
 Output:

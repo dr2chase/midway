@@ -59,9 +59,9 @@ func TestMidwaySimpleGeneration(t *testing.T) {
 	// Run cmd/midway
 	// We run it using "go run ./cmd/midway"
 	// The -dir flag points to the directory to process
-	cmd := exec.Command("go", "run", "./cmd/midway", "-dir", tmpDir)
+	cmd := exec.Command("go", "run", "./cmd/midway", "-arch=amd64,wasm", "-dir", tmpDir)
 	if testing.Verbose() {
-		t.Logf("go run ./cmd/midway -dir testdata/simple # real command in a tmpdir")
+		t.Logf("go run ./cmd/midway -arch=amd64,wasm -dir testdata/simple # real command in a tmpdir")
 	}
 	// cmd/midway logs to stderr/stdout
 	if output, err := cmd.CombinedOutput(); err != nil {
@@ -108,7 +108,7 @@ func TestMidwayIpCompilation(t *testing.T) {
 }
 
 func TestMidwaySplitPkgCompilation(t *testing.T) {
-	testMidwayCompilation(t, "splitpkg", "-sizes=amd64:128,256,512")
+	testMidwayCompilation(t, "splitpkg", "-a2s=amd64:128,256,512")
 }
 
 // testMidwayCompilation verifies that running cmd/midway in testdata/subdir
@@ -125,7 +125,7 @@ func testMidwayCompilation(t *testing.T, subdir, extraFlag string) {
 	// Initialize module for packages.Load to work
 	initModule(t, tmpDir, subdir)
 
-	flags := []string{"run", "./cmd/midway", "-dir", tmpDir}
+	flags := []string{"run", "./cmd/midway", "-arch=amd64", "-dir", tmpDir}
 
 	if extraFlag != "" {
 		flags = append(flags, extraFlag)
@@ -134,7 +134,7 @@ func testMidwayCompilation(t *testing.T, subdir, extraFlag string) {
 	// Run cmd/midway
 	cmd := exec.Command("go", flags...)
 	if testing.Verbose() {
-		t.Logf("go run ./cmd/midway -dir testdata/%s # real command in a tmpdir", subdir)
+		t.Logf("go run ./cmd/midway -arch=amd64,wasm -dir testdata/%s # real command in a tmpdir", subdir)
 	}
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("failed to run cmd/midway: %v\nOutput:\n%s", err, output)
