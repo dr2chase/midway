@@ -141,13 +141,11 @@ func (a *Analyzer) markIfDependent(obj types.Object) bool {
 	case *types.TypeName:
 		isDep = a.isDependentType(obj.Type())
 	case *types.Func:
-		// Check signature
 		sig := obj.Type().(*types.Signature)
-		if rcv := sig.Recv(); a.isDependentType(sig.Params()) || a.isDependentType(sig.Results()) ||
-			(rcv != nil && a.isDependentType(rcv.Type())) {
+		if a.HasDependentSignature(sig) {
 			// NOT dependent if it is a method of one of the base SIMD types.
 			// TODO: what about aliases of base SIMD types?
-			if rcv == nil {
+			if rcv := sig.Recv(); rcv == nil {
 				isDep = true
 			} else if named, ok := rcv.Type().(*types.Named); !ok || !isBaseSimdType(named) {
 				isDep = true
@@ -204,7 +202,8 @@ func (a *Analyzer) checkTypeRecursive(t types.Type) bool {
 	case *types.Array:
 		return memo(a.checkTypeRecursive(t.Elem()))
 	case *types.Map:
-		return memo(a.checkTypeRecursive(t.Key()) || a.checkTypeRecursive(t.Elem()))
+		return memo(a.checkTypeRecursive(t.Key()) ||
+			a.checkTypeRecursive(t.Elem()))
 	case *types.Chan:
 		return memo(a.checkTypeRecursive(t.Elem()))
 	case *types.Struct:
