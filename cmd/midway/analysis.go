@@ -238,7 +238,16 @@ func isBaseSimdTypeObj(obj types.Object) bool {
 	if obj.Pkg().Name() != "simd" {
 		return false
 	}
-	switch obj.Name() {
+	return isSimdTypeName(obj.Name())
+}
+
+// HasDependentSignature checks if the signature involves SIMD types directly (params/results/receiver)
+func (a *Analyzer) HasDependentSignature(sig *types.Signature) bool {
+	return a.isDependentType(sig.Params()) || a.isDependentType(sig.Results()) || (sig.Recv() != nil && a.isDependentType(sig.Recv().Type()))
+}
+
+func isSimdTypeName(s string) bool {
+	switch s {
 	case "Int8s", "Int16s", "Int32s", "Int64s",
 		"Uint8s", "Uint16s", "Uint32s", "Uint64s",
 		"Mask8s", "Mask16s", "Mask32s", "Mask64s",
@@ -246,9 +255,4 @@ func isBaseSimdTypeObj(obj types.Object) bool {
 		return true
 	}
 	return false
-}
-
-// HasDependentSignature checks if the signature involves SIMD types directly (params/results/receiver)
-func (a *Analyzer) HasDependentSignature(sig *types.Signature) bool {
-	return a.isDependentType(sig.Params()) || a.isDependentType(sig.Results()) || (sig.Recv() != nil && a.isDependentType(sig.Recv().Type()))
 }
