@@ -17,6 +17,7 @@ type Analyzer struct {
 	simdTypes    map[types.Type]bool
 	dependentObj map[types.Object]bool
 	nestingDepth int // within local scopes, dependent variables need not be renamed.
+	visited      map[types.Type]bool
 }
 
 func NewAnalyzer(pkg *packages.Package) *Analyzer {
@@ -24,6 +25,7 @@ func NewAnalyzer(pkg *packages.Package) *Analyzer {
 		pkg:          pkg,
 		simdTypes:    make(map[types.Type]bool),
 		dependentObj: make(map[types.Object]bool),
+		visited:      make(map[types.Type]bool),
 	}
 }
 
@@ -141,8 +143,9 @@ func (a *Analyzer) markIfDependent(obj types.Object) bool {
 	case *types.Func:
 		// Check signature
 		sig := obj.Type().(*types.Signature)
-		if rcv := sig.Recv(); a.isDependentType(sig.Params()) || a.isDependentType(sig.Results()) || (rcv != nil && a.isDependentType(rcv.Type())) {
-			// NOT dependent if it is a mehod of one of the base SIMD types.
+		if rcv := sig.Recv(); a.isDependentType(sig.Params()) || a.isDependentType(sig.Results()) ||
+			(rcv != nil && a.isDependentType(rcv.Type())) {
+			// NOT dependent if it is a method of one of the base SIMD types.
 			// TODO: what about aliases of base SIMD types?
 			if rcv == nil {
 				isDep = true
@@ -164,25 +167,30 @@ func (a *Analyzer) markIfDependent(obj types.Object) bool {
 }
 
 func (a *Analyzer) isDependentType(t types.Type) bool {
-	return a.checkTypeRecursive(t, make(map[types.Type]bool))
+	return a.checkTypeRecursive(t)
 }
 
-func (a *Analyzer) checkTypeRecursive(t types.Type, visited map[types.Type]bool) bool {
-	if visited[t] {
-		return false // Break cycles
-	}
-	visited[t] = true
+func (a *Analyzer) checkTypeRecursive(t types.Type) bool {
 	if t == nil {
 		return false
+	}
+	if b, ok := a.visited[t]; ok {
+		return b // Break cycles
+	}
+	a.visited[t] = false
+
+	memo := func(b bool) bool {
+		a.visited[t] = b
+		return b
 	}
 
 	// Unwrap aliases
 	if named, ok := t.(*types.Named); ok {
 		if isBaseSimdType(named) {
-			return true
+			return memo(true)
 		}
-		if a.checkTypeRecursive(named.Underlying(), visited) {
-			return true
+		if a.checkTypeRecursive(named.Underlying()) {
+			return memo(true)
 		}
 	}
 
@@ -190,31 +198,31 @@ func (a *Analyzer) checkTypeRecursive(t types.Type, visited map[types.Type]bool)
 	case *types.Basic:
 		return false
 	case *types.Pointer:
-		return a.checkTypeRecursive(t.Elem(), visited)
+		return memo(a.checkTypeRecursive(t.Elem()))
 	case *types.Slice:
-		return a.checkTypeRecursive(t.Elem(), visited)
+		return memo(a.checkTypeRecursive(t.Elem()))
 	case *types.Array:
-		return a.checkTypeRecursive(t.Elem(), visited)
+		return memo(a.checkTypeRecursive(t.Elem()))
 	case *types.Map:
-		return a.checkTypeRecursive(t.Key(), visited) || a.checkTypeRecursive(t.Elem(), visited)
+		return memo(a.checkTypeRecursive(t.Key()) || a.checkTypeRecursive(t.Elem()))
 	case *types.Chan:
-		return a.checkTypeRecursive(t.Elem(), visited)
+		return memo(a.checkTypeRecursive(t.Elem()))
 	case *types.Struct:
 		for i := 0; i < t.NumFields(); i++ {
-			if a.checkTypeRecursive(t.Field(i).Type(), visited) {
-				return true
+			if a.checkTypeRecursive(t.Field(i).Type()) {
+				return memo(true)
 			}
 		}
 	case *types.Signature:
-		return a.checkTypeRecursive(t.Params(), visited) || a.checkTypeRecursive(t.Results(), visited) || (t.Recv() != nil && a.checkTypeRecursive(t.Recv().Type(), visited))
+		return memo(a.HasDependentSignature(t))
 	case *types.Tuple:
 		for i := 0; i < t.Len(); i++ {
-			if a.checkTypeRecursive(t.At(i).Type(), visited) {
-				return true
+			if a.checkTypeRecursive(t.At(i).Type()) {
+				return memo(true)
 			}
 		}
 	case *types.Alias:
-		return a.checkTypeRecursive(t.Rhs(), visited)
+		return memo(a.checkTypeRecursive(t.Rhs()))
 	}
 	return false
 }
