@@ -308,72 +308,9 @@ func (r *Rewriter) createDispatcherBody(funcName string, funcType *ast.FuncType)
 }
 
 func (r *Rewriter) generateForSize(k int) error {
-	suffix := fmt.Sprintf("_simd%d", k)
 	fileSuffix := fmt.Sprintf("_simd%d_%s", k, r.arch)
 
-	// We handle identifiers by checking if they resolve to Dependent objects
-	onIdent := func(id *ast.Ident) *ast.Ident {
-		obj := r.pkg.TypesInfo.ObjectOf(id)
-		if obj == nil {
-			return nil
-		}
-
-		shouldRename := false
-		if r.analyzer.dependentObj[obj] {
-			shouldRename = true
-		} else if isBaseSimdTypeObj(obj) {
-			// It might not be in dependentObj set if we didn't track it explicitly there,
-			// but we want to rewrite `simd.Int8s` to `simd.Int8s_simd128`.
-			shouldRename = true
-		}
-
-		if shouldRename {
-			return &ast.Ident{
-				NamePos: id.NamePos,
-				Name:    id.Name + suffix, // The rewriting happens here
-				Obj:     nil,              // New object is not resolved yet
-			}
-		}
-
-		return nil // Use default copy behavior
-	}
-
-	onSelector := func(se *ast.SelectorExpr) ast.Expr {
-		if x, ok := se.X.(*ast.Ident); ok {
-			if obj, ok := r.pkg.TypesInfo.ObjectOf(x).(*types.PkgName); ok {
-				if obj.Imported().Name() == "simd" {
-					isLoad := false
-					suffix := "Slice"
-					name := se.Sel.Name
-					// Looking for simd.Load<Type><Size>Slice[Part].
-					// If so, extract <Type><Size> and append "s" to get the type translation.
-					if p := strings.Index(name, "Slice"); p > 0 && strings.HasPrefix(name, "Load") {
-						isLoad = true
-						if strings.HasSuffix(name, "SlicePart") {
-							suffix = "SlicePart"
-						}
-						name = name[len("Load"):p] + "s"
-					}
-					width := nameToWidth(name)
-					if width > 0 {
-						count := k / width
-						base := name[:len(name)-1]
-						newName := fmt.Sprintf("%sx%d", base, count)
-						if isLoad {
-							newName = "Load" + newName + suffix
-						}
-						return &ast.SelectorExpr{
-							X:   ast.NewIdent("archsimd"),
-							Sel: ast.NewIdent(newName),
-						}
-					}
-				}
-			}
-		}
-		return nil
-	}
-
-	copier := &DeepCopier{OnIdent: onIdent, OnSelector: onSelector, VecLen: k}
+	copier := &DeepCopier{pkg: r.pkg, analyzer: r.analyzer, vecLen: k, suffix: fmt.Sprintf("_simd%d", k)}
 
 	for _, fileAST := range r.pkg.Syntax {
 		tokenFile := r.pkg.Fset.File(fileAST.Pos())

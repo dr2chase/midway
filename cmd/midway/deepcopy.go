@@ -7,19 +7,79 @@ package main
 import (
 	"fmt"
 	"go/ast"
+	"go/types"
+	"golang.org/x/tools/go/packages"
+	"strings"
 )
 
 // DeepCopier clones AST nodes.
 type DeepCopier struct {
-	VecLen int
+	pkg      *packages.Package
+	analyzer *Analyzer
+	suffix   string
+	vecLen   int
+}
 
-	// OnIdent, if provided, handles identifier cloning.
-	// If it returns nil, a default clone is performed.
-	OnIdent func(*ast.Ident) *ast.Ident
+// We handle identifiers by checking if they resolve to Dependent objects
+func (c *DeepCopier) onIdent(id *ast.Ident) *ast.Ident {
+	obj := c.pkg.TypesInfo.ObjectOf(id)
+	if obj == nil {
+		return nil
+	}
 
-	// OnSelector, if provided, handles selector expression cloning.
-	// If it returns nil, a default clone is performed.
-	OnSelector func(*ast.SelectorExpr) ast.Expr
+	shouldRename := false
+	if c.analyzer.dependentObj[obj] {
+		shouldRename = true
+	} else if isBaseSimdTypeObj(obj) {
+		// It might not be in dependentObj set if we didn't track it explicitly there,
+		// but we want to rewrite `simd.Int8s` to `simd.Int8s_simd128`.
+		shouldRename = true
+	}
+
+	if shouldRename {
+		return &ast.Ident{
+			NamePos: id.NamePos,
+			Name:    id.Name + c.suffix, // The rewriting happens here
+			Obj:     nil,                // New object is not resolved yet
+		}
+	}
+
+	return nil // Use default copy behavior
+}
+
+func (c *DeepCopier) onSelector(se *ast.SelectorExpr) ast.Expr {
+	if x, ok := se.X.(*ast.Ident); ok {
+		if obj, ok := c.pkg.TypesInfo.ObjectOf(x).(*types.PkgName); ok {
+			if obj.Imported().Name() == "simd" {
+				isLoad := false
+				suffix := "Slice"
+				name := se.Sel.Name
+				// Looking for simd.Load<Type><Size>Slice[Part].
+				// If so, extract <Type><Size> and append "s" to get the type translation.
+				if p := strings.Index(name, "Slice"); p > 0 && strings.HasPrefix(name, "Load") {
+					isLoad = true
+					if strings.HasSuffix(name, "SlicePart") {
+						suffix = "SlicePart"
+					}
+					name = name[len("Load"):p] + "s"
+				}
+				width := nameToWidth(name)
+				if width > 0 {
+					count := c.vecLen / width
+					base := name[:len(name)-1]
+					newName := fmt.Sprintf("%sx%d", base, count)
+					if isLoad {
+						newName = "Load" + newName + suffix
+					}
+					return &ast.SelectorExpr{
+						X:   ast.NewIdent("archsimd"),
+						Sel: ast.NewIdent(newName),
+					}
+				}
+			}
+		}
+	}
+	return nil
 }
 
 func (c *DeepCopier) CopyDecl(d ast.Decl) ast.Decl {
@@ -99,10 +159,8 @@ func (c *DeepCopier) CopyExpr(e ast.Expr) ast.Expr {
 	case *ast.ArrayType:
 		return &ast.ArrayType{Lbrack: e.Lbrack, Len: c.CopyExpr(e.Len), Elt: c.CopyExpr(e.Elt)}
 	case *ast.SelectorExpr:
-		if c.OnSelector != nil {
-			if sub := c.OnSelector(e); sub != nil {
-				return sub
-			}
+		if sub := c.onSelector(e); sub != nil {
+			return sub
 		}
 		return &ast.SelectorExpr{X: c.CopyExpr(e.X), Sel: c.CopyIdent(e.Sel)}
 	case *ast.CallExpr:
@@ -252,7 +310,7 @@ func (c *DeepCopier) CopyBlockStmtAndAssert(b *ast.BlockStmt, doAssert bool) *as
 	newB := &ast.BlockStmt{Lbrace: b.Lbrace, Rbrace: b.Rbrace}
 
 	if doAssert {
-		assertName := fmt.Sprintf("Assert%d", c.VecLen)
+		assertName := fmt.Sprintf("Assert%d", c.vecLen)
 		assertCall := &ast.ExprStmt{
 			X: &ast.CallExpr{
 				Fun: &ast.SelectorExpr{
@@ -313,10 +371,8 @@ func (c *DeepCopier) CopyIdent(id *ast.Ident) *ast.Ident {
 	if id == nil {
 		return nil
 	}
-	if c.OnIdent != nil {
-		if match := c.OnIdent(id); match != nil {
-			return match
-		}
+	if match := c.onIdent(id); match != nil {
+		return match
 	}
 	newId := &ast.Ident{
 		NamePos: id.NamePos,
